@@ -1,0 +1,64 @@
+"""Client tests run against the real FastAPI server app in-process."""
+
+from pathlib import Path
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+
+from noted_cli.api_client import SupernoteApiClient
+from noted_cli.engine import SyncEngine
+from noted_cli.state_db import StateDB
+from noted_protocol.crypto import password_md5
+from noted_server.config import Settings
+from noted_server.main import create_app
+
+TEST_PASSWORD = "hunter2 hunter2"
+TEST_ACCOUNT = "chris@example.com"
+
+
+@pytest.fixture
+def server_settings(tmp_path: Path) -> Settings:
+    return Settings(
+        account=TEST_ACCOUNT,
+        password_md5=password_md5(TEST_PASSWORD),
+        base_url="http://testserver",
+        data_dir=tmp_path / "server-data",
+        database_url=f"sqlite:///{tmp_path / 'server.db'}",
+    )
+
+
+@pytest.fixture
+def http(server_settings: Settings) -> httpx.Client:
+    # TestClient is an httpx.Client subclass, so the api client can use it directly.
+    return TestClient(create_app(server_settings))
+
+
+def make_api(http: httpx.Client, equipment_no: str = "CLI-test0001") -> SupernoteApiClient:
+    api = SupernoteApiClient(http, equipment_no)
+    api.login(TEST_ACCOUNT, TEST_PASSWORD)
+    return api
+
+
+@pytest.fixture
+def api(http: httpx.Client) -> SupernoteApiClient:
+    return make_api(http)
+
+
+@pytest.fixture
+def sync_root(tmp_path: Path) -> Path:
+    root = tmp_path / "local"
+    root.mkdir()
+    return root
+
+
+def make_engine(
+    api: SupernoteApiClient, tmp_path: Path, sync_root: Path, policy: str = "keep-both"
+) -> SyncEngine:
+    state = StateDB(tmp_path / f"state-{api.equipment_no}.db")
+    return SyncEngine(api, state, sync_root, conflict_policy=policy)
+
+
+@pytest.fixture
+def engine(api: SupernoteApiClient, tmp_path: Path, sync_root: Path) -> SyncEngine:
+    return make_engine(api, tmp_path, sync_root)
