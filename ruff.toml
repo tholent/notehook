@@ -1,0 +1,18 @@
+target-version = "py312"
+line-length = 100
+src = ["packages/protocol/src", "packages/server/src", "packages/client/src"]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["SIM117"]
