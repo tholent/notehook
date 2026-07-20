@@ -138,10 +138,17 @@ def daemon(config_dir: ConfigDirOpt = None) -> None:
         f"Watching [bold]{config.sync_root}[/bold], polling every "
         f"{config.poll_interval_seconds}s. Ctrl-C to stop."
     )
+    # Dedicated connection for the change-feed long-poll (workflow-spec.md
+    # §7): reuses the already-validated token, but a separate httpx.Client so
+    # a 25s long-poll never blocks file transfers on the main connection.
+    feed_http = httpx.Client(base_url=config.server_url, timeout=35)
+    feed_api = SupernoteApiClient(feed_http, config.equipment_no)
+    feed_api.token = api.token
     sync_daemon = SyncDaemon(
         engine,
         config.poll_interval_seconds,
         on_result=lambda r: _print_result(r) if r.changed or r.conflicts else None,
+        feed_api=feed_api,
     )
     try:
         sync_daemon.run()

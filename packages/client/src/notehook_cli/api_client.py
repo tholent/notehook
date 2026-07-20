@@ -17,6 +17,14 @@ class ApiError(RuntimeError):
         self.msg = msg
 
 
+class EndpointUnsupported(ApiError):
+    """The server answered via its catch-all route (errorCode '9999'): it
+    predates /api/notehook/changes. Distinct from ApiError so callers (the
+    daemon's change-feed thread) can permanently disable the feature instead
+    of retrying forever (workflow-spec.md §7: "feed absence degrades to
+    today's behavior, never breaks sync")."""
+
+
 class SupernoteApiClient:
     """Thin wrapper over the server API. Accepts any httpx.Client-compatible
     object (the test suite injects FastAPI's TestClient)."""
@@ -133,6 +141,26 @@ class SupernoteApiClient:
             content_hash=finish["content_hash"],
             size=finish["size"],
         )
+
+    def changes(
+        self, since: int, limit: int = 500, wait_seconds: int = 0
+    ) -> tuple[int, list[dict[str, Any]]]:
+        """Server-side change feed (workflow-spec.md §7): notehook's own
+        extension, outside the reverse-engineered device API. Returns
+        (new_cursor, raw change rows). Servers without the endpoint answer
+        via the catch-all (success=false, errorCode '9999'), surfaced here
+        as EndpointUnsupported rather than the generic ApiError.
+        """
+        try:
+            body = self._post(
+                "/api/notehook/changes",
+                {"since": since, "limit": limit, "wait_seconds": wait_seconds},
+            )
+        except ApiError as exc:
+            if exc.code == "9999":
+                raise EndpointUnsupported(exc.code, exc.msg) from exc
+            raise
+        return int(body.get("cursor", 0)), list(body.get("changes", []))
 
     def download_file(self, node_id: int, dest: Path) -> str:
         vo = self._post(
