@@ -14,6 +14,7 @@ from notehook_cli.config import ClientConfig
 from notehook_cli.daemon import SyncDaemon
 from notehook_cli.engine import POLICIES, SyncEngine, SyncResult
 from notehook_cli.state_db import StateDB
+from notehook_cli.workflows.events import EventLog
 
 app = typer.Typer(help="Keep a local directory in sync with a Supernote sync server.")
 console = Console()
@@ -110,6 +111,8 @@ def _make_engine(config: ClientConfig, api: SupernoteApiClient) -> SyncEngine:
         StateDB(config.state_db_file),
         config.sync_root,
         conflict_policy=config.conflict_policy,
+        event_log=EventLog(config.events_db_file),
+        lock_file=config.engine_lock_file,
     )
 
 
