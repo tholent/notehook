@@ -35,6 +35,7 @@ __all__ = [
     "extract_pep723_block_text",
     "parse_manifest",
     "parse_package",
+    "parse_pep723_metadata",
     "parse_single_file",
 ]
 
@@ -161,6 +162,18 @@ def extract_pep723_block_text(path: Path) -> str | None:
     if not matches:
         return None
     return matches[0].group(0)
+
+
+def parse_pep723_metadata(path: Path) -> dict[str, Any] | None:
+    """Return the full parsed PEP 723 `# /// script` block (`requires-python`,
+    `dependencies`, and any `[tool.*]` tables) as a plain dict, or `None` if
+    `path` carries no such block.
+
+    Used by the CLI's install-time disclosure (spec §3: "dependency list")
+    to display `requires-python`/`dependencies` without re-deriving the PEP
+    723 extraction regex — display purposes only, not validation.
+    """
+    return _extract_pep723_block(path.read_text())
 
 
 # --- extraction ---

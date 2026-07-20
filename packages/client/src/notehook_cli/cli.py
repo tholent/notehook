@@ -14,9 +14,11 @@ from notehook_cli.config import ClientConfig
 from notehook_cli.daemon import SyncDaemon
 from notehook_cli.engine import POLICIES, SyncEngine, SyncResult
 from notehook_cli.state_db import StateDB
+from notehook_cli.workflows.cli import workflows_app
 from notehook_cli.workflows.events import EventLog
 
 app = typer.Typer(help="Keep a local directory in sync with a Supernote sync server.")
+app.add_typer(workflows_app, name="workflows")
 console = Console()
 
 ConfigDirOpt = Annotated[

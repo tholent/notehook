@@ -37,6 +37,8 @@ __all__ = [
     "InstallWarning",
     "compile_path_glob",
     "discover",
+    "parse_install_config",
+    "resolve_workflow_path",
 ]
 
 _VALID_ON_TYPES = frozenset({"created", "updated", "deleted"})
@@ -220,6 +222,14 @@ def _resolve_workflow_path(workflows_dir: Path, alias: str) -> Path | None:
     return None
 
 
+def resolve_workflow_path(workflows_dir: Path, alias: str) -> Path | None:
+    """Public wrapper around `_resolve_workflow_path` (Phase 4 CLI verbs need
+    it directly: `configure`/`enable`/`disable`/`remove`/`update` operate on
+    one alias's code location without running the rest of `discover()`'s
+    validation)."""
+    return _resolve_workflow_path(workflows_dir, alias)
+
+
 # --- load + validate one install ---
 
 
@@ -391,3 +401,11 @@ def _parse_install_config(path: Path) -> InstallConfig:
         inputs=dict(inputs),
         secrets=dict(secrets),
     )
+
+
+def parse_install_config(path: Path) -> InstallConfig:
+    """Public wrapper around `_parse_install_config`, for the same reason as
+    `resolve_workflow_path` above: the Phase 4 CLI verbs need to load one
+    `<alias>.toml` on its own (e.g. to merge in new values before rewriting)
+    without going through the full `discover()` pairing/validation pass."""
+    return _parse_install_config(path)
