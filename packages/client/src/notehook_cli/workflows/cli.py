@@ -14,6 +14,7 @@ exposes `workflows_app = typer.Typer()`, registered in
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -74,6 +75,22 @@ def _load(config_dir: Path | None) -> ClientConfig:
 def _fail(message: str, *, code: int = 1) -> typer.Exit:
     console.print(f"[red]{message}[/red]")
     return typer.Exit(code)
+
+
+_FORBIDDEN_ALIAS = re.compile(r"[/\\\x00-\x1f]")
+
+
+def _validate_alias(alias: str) -> str:
+    """Reject anything that could escape `workflows_dir`/`workflow_config_dir`
+    when joined into a path (mirrors the server's `tree_service.validate_name`
+    invariant -- client-supplied values never touch filesystem paths
+    directly). Must run on every alias before it's used to build a path,
+    including `install`'s manifest-derived default: for a git-sourced
+    install, `manifest.name` is content from the cloned repo's own
+    `pyproject.toml`/PEP 723 block, i.e. attacker-controlled."""
+    if not alias or alias in {".", ".."} or _FORBIDDEN_ALIAS.search(alias):
+        raise _fail(f"invalid alias: {alias!r}")
+    return alias
 
 
 # --- git URL vs local path detection ---
@@ -343,7 +360,7 @@ def install(
         except ManifestError as exc:
             raise _fail(f"invalid manifest: {exc}") from exc
 
-        final_alias = alias or manifest.name
+        final_alias = _validate_alias(alias or manifest.name)
         is_package = staged_path.is_dir()
         final_workflow_path = (
             workflows_dir / final_alias if is_package else workflows_dir / f"{final_alias}.py"
@@ -425,6 +442,7 @@ def configure(
     config_dir: ConfigDirOpt = None,
 ) -> None:
     """Re-prompt/re-set inputs, secrets, and paths for an existing install."""
+    _validate_alias(alias)
     config = _load(config_dir)
     config_path = config.workflow_config_dir / f"{alias}.toml"
     if not config_path.is_file():
@@ -475,6 +493,7 @@ def configure(
 
 
 def _set_enabled(alias: str, enabled: bool, config_dir: Path | None) -> None:
+    _validate_alias(alias)
     config = _load(config_dir)
     config_path = config.workflow_config_dir / f"{alias}.toml"
     if not config_path.is_file():
@@ -530,6 +549,7 @@ def remove(
     `keep_runs` is reserved: run history in events.db is never purged by this
     command in v1 regardless of the flag (see the confirmation prompt below).
     """
+    _validate_alias(alias)
     config = _load(config_dir)
     workflow_path = resolve_workflow_path(config.workflows_dir, alias)
     config_path = config.workflow_config_dir / f"{alias}.toml"
@@ -569,6 +589,7 @@ def update(
 ) -> None:
     """`git pull` a git-sourced install, revalidate, and re-prompt for any
     newly required inputs/secrets (spec §5)."""
+    _validate_alias(alias)
     config = _load(config_dir)
     config_path = config.workflow_config_dir / f"{alias}.toml"
     if not config_path.is_file():

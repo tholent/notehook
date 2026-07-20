@@ -489,3 +489,74 @@ def test_list_never_alias_when_no_runs(tmp_path: Path) -> None:
     result = _invoke(config_dir, ["list"])
     assert result.exit_code == 0, result.output
     assert "never" in result.output
+
+
+# --- alias path-traversal hardening ---
+#
+# `alias` (whether from `--as` or, for `install`, defaulted from the
+# manifest's `name`) is used to build paths under `workflows_dir` /
+# `workflow_config_dir`. For a git-sourced install, `manifest.name` is
+# content from the cloned repo's own pyproject.toml -- i.e. attacker
+# controlled -- so a `..`-laden name must never escape those directories.
+
+
+def test_install_rejects_traversal_via_as_alias(tmp_path: Path) -> None:
+    config_dir = tmp_path / "cfg"
+    src_dir = tmp_path / "src-pkg"
+    _write_package_fixture(src_dir, name="demo-pkg")
+    canary = tmp_path / "canary.toml"
+    assert not canary.exists()
+
+    result = _install(config_dir, src_dir, "../canary")
+
+    assert result.exit_code != 0, result.output
+    assert not canary.exists()
+    assert not (config_dir / "workflows").exists()
+
+
+def test_install_rejects_traversal_via_manifest_name(tmp_path: Path) -> None:
+    """The dangerous case: no `--as` given, so the alias defaults to
+    `manifest.name` -- fully attacker-controlled for a git-sourced install."""
+    config_dir = tmp_path / "cfg"
+    src_dir = tmp_path / "src-pkg"
+    _write_package_fixture(src_dir, name="../../canary")
+    canary_marker = tmp_path / "canary"
+    assert not canary_marker.exists()
+
+    result = _invoke(
+        config_dir, ["install", str(src_dir), "--paths", "**", "--yes"]
+    )
+
+    assert result.exit_code != 0, result.output
+    assert not canary_marker.exists()
+
+
+def test_remove_rejects_traversal_alias(tmp_path: Path) -> None:
+    config_dir = tmp_path / "cfg"
+    outside = tmp_path / "outside-dir"
+    outside.mkdir()
+    (outside / "marker.txt").write_text("do not delete me")
+
+    result = _invoke(config_dir, ["remove", "../outside-dir", "--yes"])
+
+    assert result.exit_code != 0, result.output
+    assert outside.is_dir()
+    assert (outside / "marker.txt").is_file()
+
+
+def test_configure_rejects_traversal_alias(tmp_path: Path) -> None:
+    config_dir = tmp_path / "cfg"
+    result = _invoke(config_dir, ["configure", "../escape", "--yes"])
+    assert result.exit_code != 0, result.output
+
+
+def test_enable_rejects_traversal_alias(tmp_path: Path) -> None:
+    config_dir = tmp_path / "cfg"
+    result = _invoke(config_dir, ["enable", "../escape"])
+    assert result.exit_code != 0, result.output
+
+
+def test_update_rejects_traversal_alias(tmp_path: Path) -> None:
+    config_dir = tmp_path / "cfg"
+    result = _invoke(config_dir, ["update", "../escape", "--yes"])
+    assert result.exit_code != 0, result.output
