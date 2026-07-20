@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from notehook_cli.api_client import SupernoteApiClient
 from notehook_cli.engine import SyncEngine
 from notehook_cli.state_db import StateDB
+from notehook_cli.workflows.events import EventLog
 from notehook_protocol.crypto import password_md5
 from notehook_server.config import Settings
 from notehook_server.main import create_app
@@ -62,3 +63,21 @@ def make_engine(
 @pytest.fixture
 def engine(api: SupernoteApiClient, tmp_path: Path, sync_root: Path) -> SyncEngine:
     return make_engine(api, tmp_path, sync_root)
+
+
+def make_engine_with_events(
+    api: SupernoteApiClient, tmp_path: Path, sync_root: Path, policy: str = "keep-both"
+) -> tuple[SyncEngine, EventLog]:
+    """Like make_engine, but wires an EventLog + lock file (Phase 2 emission)."""
+    state = StateDB(tmp_path / f"state-{api.equipment_no}.db")
+    event_log = EventLog(tmp_path / f"events-{api.equipment_no}.db")
+    lock_file = tmp_path / f"events-{api.equipment_no}.db.lock"
+    engine = SyncEngine(
+        api,
+        state,
+        sync_root,
+        conflict_policy=policy,
+        event_log=event_log,
+        lock_file=lock_file,
+    )
+    return engine, event_log

@@ -43,6 +43,14 @@ class ClientConfig:
     def state_db_file(self) -> Path:
         return self.config_dir / "state.db"
 
+    @property
+    def events_db_file(self) -> Path:
+        return self.config_dir / "events.db"
+
+    @property
+    def engine_lock_file(self) -> Path:
+        return self.config_dir / "events.db.lock"
+
     @classmethod
     def load(cls, config_dir: Path | None = None) -> "ClientConfig":
         config_dir = config_dir or default_config_dir()
