@@ -32,6 +32,7 @@ __all__ = [
     "ManifestWarning",
     "RetrySpec",
     "SecretSpec",
+    "extract_pep723_block_text",
     "parse_manifest",
     "parse_package",
     "parse_single_file",
@@ -141,6 +142,25 @@ def parse_package(dir_path: Path) -> Manifest:
             table = _extract_tool_notehook_from_script(default_entry_path)
 
     return _build_manifest(table or {}, name_default=dir_path.name)
+
+
+def extract_pep723_block_text(path: Path) -> str | None:
+    """Return the raw `# /// script` ... `# ///` block (verbatim, comment
+    markers included), or `None` if `path` carries none.
+
+    Used by the harness (`workflows/harness.py`) to copy a single-file
+    workflow's PEP 723 metadata into the generated harness script, so
+    `uv run` resolves the identical `requires-python`/`dependencies` for
+    both. Shares `_PEP723_REGEX` with the manifest-parsing path above rather
+    than re-deriving it.
+    """
+    text = path.read_text()
+    matches = [m for m in _PEP723_REGEX.finditer(text) if m.group("type") == "script"]
+    if len(matches) > 1:
+        raise ManifestError(f"{path}: multiple PEP 723 'script' blocks found")
+    if not matches:
+        return None
+    return matches[0].group(0)
 
 
 # --- extraction ---

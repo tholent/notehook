@@ -34,6 +34,9 @@ packages = ["src/notehook_cli"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=notehook_cli --cov-report=term-missing"
+markers = [
+    "uv: exercises the real `uv run` invocation path (skipped when `uv` is not on PATH)",
+]
 
 [tool.coverage.run]
 source = ["src/notehook_cli"]
