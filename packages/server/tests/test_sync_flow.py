@@ -3,8 +3,11 @@
 import hashlib
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
+from notehook_server.models import FileNode
 from tests.conftest import TEST_ACCOUNT, TEST_PASSWORD
 from tests.helpers.fake_device import FakeDevice
 
@@ -83,6 +86,40 @@ def test_two_equipment_share_one_tree(client: TestClient, device: FakeDevice) ->
     listing = cli.list_folder("", recursive=True)
     paths = {e["path_display"] for e in listing["entries"]}
     assert "/Note/shared.note" in paths
+
+
+def test_last_modified_by_reflects_uploading_equipment(
+    client: TestClient, device: FakeDevice
+) -> None:
+    # 1a: equipment A uploads, equipment B lists — B sees A's equipment_no.
+    device.create_folder("/Note")
+    device.upload("/Note", "shared.note", b"from A")
+
+    other = FakeDevice(client, TEST_ACCOUNT, TEST_PASSWORD, "SN99999999")
+    assert other.login()["success"]
+    listing = other.list_folder("/Note", recursive=True)
+    entry = next(e for e in listing["entries"] if e["name"] == "shared.note")
+    assert entry["last_modified_by"] == device.equipment_no
+
+
+def test_legacy_node_last_modified_by_none_serializes_empty(
+    app: FastAPI, device: FakeDevice
+) -> None:
+    # 1a: nodes created before the field existed have last_modified_by=None
+    # in the DB; they must still serialize cleanly as "".
+    device.create_folder("/Legacy")
+    with Session(app.state.engine) as session:
+        node = session.exec(select(FileNode).where(FileNode.name == "Legacy")).one()
+        node.last_modified_by = None
+        session.add(node)
+        session.commit()
+
+    vo = device._post(
+        "/api/file/3/files/query/by/path_v3",
+        {"equipmentNo": device.equipment_no, "path": "/Legacy"},
+    )
+    assert vo["success"], vo
+    assert vo["entriesVO"]["last_modified_by"] == ""
 
 
 def test_chunked_upload(device: FakeDevice) -> None:

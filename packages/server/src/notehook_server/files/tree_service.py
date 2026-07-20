@@ -10,6 +10,7 @@ from sqlmodel import Session, func, select
 
 from notehook_protocol.models.file import EntriesVO, MetadataVO
 from notehook_server.errors import InvalidName, InvalidPath, NameConflict, NotFound
+from notehook_server.files import change_service
 from notehook_server.models import ROOT_ID, FileNode, now_ms
 
 _FORBIDDEN_NAME = re.compile(r"[/\\\x00-\x1f]")
@@ -190,7 +191,7 @@ def create_folder(
     if existing is not None and existing.is_folder and not autorename:
         return existing  # idempotent create, matching Dropbox-ish semantics
     name = _resolve_target_name(session, user_id, parent_id, leaf, autorename)
-    return _new_node(session, user_id, parent_id, name, True, equipment_no)
+    return _new_node(session, user_id, parent_id, name, True, equipment_no, record_as="create")
 
 
 def ensure_folder(
@@ -215,7 +216,14 @@ def _new_node(
     name: str,
     is_folder: bool,
     equipment_no: str | None,
+    *,
+    record_as: str | None = None,
 ) -> FileNode:
+    """Create a node. When `record_as` is set, a Change row for it is appended
+    atomically (same commit) — used only for mutations that are themselves the
+    unit of change (e.g. the leaf folder in `create_folder`), not for folders
+    implicitly created along the way (`ensure_folder`, intermediate segments).
+    """
     node = FileNode(
         parent_id=parent_id,
         name=name,
@@ -224,14 +232,20 @@ def _new_node(
         last_modified_by=equipment_no,
     )
     session.add(node)
+    session.flush()
+    if record_as is not None:
+        change_service.record(session, record_as, node, node_path(session, node), equipment_no)
     session.commit()
     session.refresh(node)
     return node
 
 
-def delete_node(session: Session, user_id: int, node_id: int) -> tuple[FileNode, list[str]]:
+def delete_node(
+    session: Session, user_id: int, node_id: int, equipment_no: str | None
+) -> tuple[FileNode, list[str]]:
     """Hard-delete a node (and subtree). Returns (node, orphaned inner_names)."""
     node = get_node(session, user_id, node_id)
+    path = node_path(session, node)  # snapshot before deletion
     inner_names: list[str] = []
 
     def collect(n: FileNode) -> None:
@@ -243,6 +257,7 @@ def delete_node(session: Session, user_id: int, node_id: int) -> tuple[FileNode,
 
     collect(node)
     session.delete(node)
+    change_service.record(session, "delete", node, path, equipment_no)
     session.commit()
     return node, inner_names
 
@@ -287,6 +302,8 @@ def move_node(
     node.version += 1
     node.last_modified_by = equipment_no
     session.add(node)
+    session.flush()
+    change_service.record(session, "move", node, node_path(session, node), equipment_no)
     session.commit()
     session.refresh(node)
     return node
@@ -316,7 +333,7 @@ def copy_node(
         raise InvalidPath("cannot copy a folder into itself")
     name = _resolve_target_name(session, user_id, dest_parent, parts[-1], autorename)
 
-    def duplicate(src: FileNode, parent_id: int, name: str) -> FileNode:
+    def duplicate(src: FileNode, parent_id: int, name: str, is_root: bool) -> FileNode:
         clone = FileNode(
             parent_id=parent_id,
             name=name,
@@ -328,13 +345,20 @@ def copy_node(
             last_modified_by=equipment_no,
         )
         session.add(clone)
+        session.flush()
+        if is_root:
+            # Only the copy root gets a Change row — children are implied,
+            # matching how delete_node records only the deleted root.
+            change_service.record(
+                session, "copy", clone, node_path(session, clone), equipment_no
+            )
         session.commit()
         session.refresh(clone)
         for child in list_children(session, user_id, src.id or 0):
-            duplicate(child, clone.id or 0, child.name)
+            duplicate(child, clone.id or 0, child.name, False)
         return clone
 
-    return duplicate(node, dest_parent, name)
+    return duplicate(node, dest_parent, name, True)
 
 
 def used_bytes(session: Session, user_id: int) -> int:

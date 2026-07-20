@@ -158,7 +158,9 @@ def list_folder_v3(
 def delete_folder_v3(
     dto: DeleteFolderLocalDTO, db: DbDep, current: CurrentDep, request: Request
 ) -> DeleteFolderLocalVO:
-    node, orphaned = tree_service.delete_node(db, current.user.id or 0, dto.id)
+    node, orphaned = tree_service.delete_node(
+        db, current.user.id or 0, dto.id, dto.equipmentNo or current.equipment.equipment_no
+    )
     metadata = tree_service.to_metadata(db, node)
     blobs = _blob_store(request)
     for inner_name in orphaned:

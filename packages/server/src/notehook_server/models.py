@@ -83,3 +83,21 @@ class SyncSession(SQLModel, table=True):
     ended_at: int | None = None
     flag: str | None = None
     status: str = "active"  # active | completed
+
+
+class Change(SQLModel, table=True):
+    """Append-only change feed (workflow-spec.md §7): one row per tree mutation.
+
+    Consumed by POST /api/notehook/changes to wake the client sync engine.
+    Reads are `WHERE id > :since ORDER BY id` — the primary key is the only
+    index needed.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    op: str  # 'create' | 'update' | 'delete' | 'move' | 'copy'
+    node_id: int
+    path_display: str  # snapshot at mutation time
+    is_folder: bool
+    content_hash: str | None = None
+    equipment_no: str = ""
+    created_at: int = Field(default_factory=now_ms)

@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from notehook_server.config import Settings
 from notehook_server.errors import QuotaExceeded, SignatureInvalid, UploadError
-from notehook_server.files import tree_service
+from notehook_server.files import change_service, tree_service
 from notehook_server.files.blob_store import BlobStore, make_inner_name
 from notehook_server.models import FileNode, UploadSession, now_ms
 
@@ -197,6 +197,14 @@ class UploadService:
             existing.version += 1
             existing.last_modified_by = equipment_no
             session.add(existing)
+            session.flush()
+            change_service.record(
+                session,
+                "update",
+                existing,
+                tree_service.node_path(session, existing),
+                equipment_no,
+            )
             session.commit()
             session.refresh(existing)
             if old_inner and not tree_service.blob_referenced(session, old_inner):
@@ -216,6 +224,10 @@ class UploadService:
                 last_modified_by=equipment_no,
             )
             session.add(node)
+            session.flush()
+            change_service.record(
+                session, "create", node, tree_service.node_path(session, node), equipment_no
+            )
             session.commit()
             session.refresh(node)
         session.delete(upload)
