@@ -21,6 +21,12 @@ _MAX_BODY = 4096
 _REDACT_KEYS = {"password", "token", "signature", "authorization", "x-access-token"}
 _REDACT_QUERY = re.compile(r"(signature|token|authorization)=[^&]+", re.IGNORECASE)
 
+# D7: notehook's own extension endpoints are never captured. They're not
+# real-device protocol surface (nothing to debug against firmware for), and
+# the changes long-poll would otherwise write a capture line on every wait
+# (up to every 30s, forever) for no diagnostic value.
+_SKIP_PREFIXES = ("/api/notehook/",)
+
 
 def _redact_obj(obj: Any) -> Any:
     if isinstance(obj, dict):
@@ -58,6 +64,9 @@ class RequestCaptureMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        if request.url.path.startswith(_SKIP_PREFIXES):
+            return await call_next(request)
+
         started = time.time()
         req_body = b""
         content_type = request.headers.get("content-type", "")

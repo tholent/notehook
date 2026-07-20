@@ -92,6 +92,12 @@ class FakeDevice:
             },
         )
 
+    def changes(self, since: int = 0, limit: int = 500, wait_seconds: int = 0) -> dict[str, Any]:
+        return self._post(
+            "/api/notehook/changes",
+            {"since": since, "limit": limit, "wait_seconds": wait_seconds},
+        )
+
     def download(self, node_id: int) -> bytes:
         vo = self._post(
             "/api/file/3/files/download_v3",

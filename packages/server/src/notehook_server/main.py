@@ -16,7 +16,7 @@ from notehook_server.files.blob_store import BlobStore
 from notehook_server.files.download_service import DownloadService
 from notehook_server.files.upload_service import UploadService
 from notehook_server.routers import auth as auth_router
-from notehook_server.routers import files_device, oss, stubs
+from notehook_server.routers import files_device, notehook, oss, stubs
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stubs.router)
     app.include_router(files_device.router)
     app.include_router(oss.router)
+    app.include_router(notehook.router)
 
     if settings.debug_capture:
         app.add_middleware(RequestCaptureMiddleware, captures_dir=settings.captures_dir)
