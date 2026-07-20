@@ -59,6 +59,14 @@ class ClientConfig:
     def workflow_config_dir(self) -> Path:
         return self.config_dir / "workflow-config"
 
+    @property
+    def runner_lock_file(self) -> Path:
+        """One `notehook workflows serve` runner per config dir at a time
+        (spec §6 crash-recovery assumes a single runner) — same `flock`
+        pattern as `engine_lock_file`, held via `lock.file_lock` around the
+        `Runner`'s lifetime by the caller (the `serve` daemon, Phase 5)."""
+        return self.config_dir / "runner.lock"
+
     @classmethod
     def load(cls, config_dir: Path | None = None) -> "ClientConfig":
         config_dir = config_dir or default_config_dir()

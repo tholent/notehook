@@ -11,12 +11,14 @@ Every connection is short-lived (opened, used, closed) and sets
 pass and a `backfill`/`manual` command, or two threads in tests) retry
 instead of raising `SQLITE_BUSY`.
 
-This phase only implements the producer side (append/settle). Consumer-side
-methods (claiming runs, cursor advancement) land in Phase 3 — the schema is
-complete now so no migration is needed later.
+Phase 3e adds the consumer side: cursor read/advance, atomic intake (run
+insertion + coalescing + cursor advance in one transaction), claiming,
+finalization, crash recovery, and the housekeeping sweep. See
+`workflows/runner.py` for the fan-out/execution logic built on top of this.
 """
 
 import sqlite3
+import threading
 import time
 from contextlib import closing
 from dataclasses import dataclass
@@ -99,17 +101,81 @@ class EventRow:
     created_at: int
 
 
+@dataclass(frozen=True)
+class PendingRun:
+    """One (event, install) match the intake fan-out decided to queue a run
+    for (runner.py builds these; `EventLog.intake` inserts them atomically
+    with the cursor advance)."""
+
+    install: str
+    workflow_name: str
+    workflow_version: str | None
+    event_id: int
+    rel_path: str
+
+
+@dataclass(frozen=True)
+class RunRow:
+    """One row of the `run` table (read-side representation, for tests —
+    mirrors `EventRow`/`all_events`)."""
+
+    id: int
+    install: str
+    workflow_name: str
+    workflow_version: str | None
+    event_id: int
+    rel_path: str
+    attempt: int
+    status: str
+    next_attempt_at: int | None
+    started_at: int | None
+    finished_at: int | None
+    exit_code: int | None
+    stdout: str | None
+    stderr: str | None
+
+
+@dataclass(frozen=True)
+class ClaimedRun:
+    """One `run` row plus its underlying event, as returned by `claim_next`
+    and `running_runs` — everything the runner needs to build the job
+    payload and, later, finalize the row without a second query."""
+
+    id: int
+    install: str
+    workflow_name: str
+    workflow_version: str | None
+    rel_path: str
+    attempt: int
+    event: EventRow
+
+
 class EventLog:
     """Owns all SQL against `events.db` (decision D1).
 
-    Producer API only in this phase: `append`, `append_settled`,
-    `settle_pass`, `settle_orphans`, plus `events_since`/`all_events` read
-    helpers for tests. Consumer/claiming methods are Phase 3.
+    Producer API: `append`, `append_settled`, `settle_pass`,
+    `settle_orphans`, plus `events_since`/`all_events` read helpers (Phase 2).
+
+    Consumer API (Phase 3e): `read_cursor`/`unconsumed_settled` (intake
+    input), `intake` (atomic insert-with-coalescing + cursor advance),
+    `claim_next`/`running_runs` (claiming, incl. crash recovery's read side),
+    `finalize_success`/`finalize_failed`/`finalize_retry`, and `sweep`
+    (housekeeping). `runner.py` owns all policy (fan-out filters, retry
+    backoff math); this class only guarantees the storage operations are
+    atomic and race-free.
     """
 
     def __init__(self, db_file: Path) -> None:
         db_file.parent.mkdir(parents=True, exist_ok=True)
         self._db_file = db_file
+        # Claiming is a read-modify-write ("find one eligible row, mark it
+        # running") that must never let two threads claim the same row.
+        # SQLite's own locking is coarse (whole-database, not row-level) and
+        # only one runner *process* ever touches this table (guarded by the
+        # runner's own flock — spec §6 crash-recovery assumes a single
+        # runner), so a plain Python lock around the claim operation is
+        # simplest and sufficient; no need for SQL-level `RETURNING` tricks.
+        self._claim_lock = threading.Lock()
         with closing(self._connect()) as conn:
             conn.executescript(_SCHEMA)
             conn.commit()
@@ -247,6 +313,313 @@ class EventLog:
 
     def all_events(self) -> list[EventRow]:
         return self.events_since(0)
+
+    def all_runs(self) -> list[RunRow]:
+        """Every `run` row, for tests (mirrors `all_events`) — the consumer
+        API otherwise only ever reads runs to act on them (`claim_next`,
+        `running_runs`), never to enumerate the whole table."""
+        with closing(self._connect()) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT * FROM run ORDER BY id").fetchall()
+            return [_row_to_run(row) for row in rows]
+
+    # --- consumer API: intake (Phase 3e) ---
+
+    def read_cursor(self) -> int:
+        """The runner's current position (`runner_meta.cursor_event_id`); 0
+        before the first `intake`."""
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT cursor_event_id FROM runner_meta WHERE id = 1").fetchone()
+            return int(row[0]) if row is not None else 0
+
+    def unconsumed_settled(self) -> list[EventRow]:
+        """Settled rows past the cursor, as a **contiguous prefix**: stops at
+        the first unsettled row rather than skipping it.
+
+        `id > cursor AND settled = 1` alone (the spec §6 literal query) would
+        let the cursor jump past a still-unsettled row with a lower id than a
+        later settled one — a real possibility since several CLI processes
+        write `event` concurrently (spec §1/D1: a daemon pass mid-flight,
+        unsettled, racing a `backfill` command whose rows are settled at
+        insert). If intake advanced the cursor to the max id of what it saw,
+        that lower unsettled row would fall behind the new cursor and, once
+        it *did* settle, would never satisfy `id > cursor` again — silently
+        dropped forever. Stopping at the first gap means the cursor only ever
+        advances over a run of rows already known-settled; the stalled row
+        and everything after it are picked up together once it settles.
+        """
+        cursor = self.read_cursor()
+        with closing(self._connect()) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM event WHERE id > ? ORDER BY id", (cursor,)
+            ).fetchall()
+        result: list[EventRow] = []
+        for row in rows:
+            if not row["settled"]:
+                break
+            result.append(_row_to_event(row))
+        return result
+
+    def intake(
+        self, pending: list[PendingRun], new_cursor: int, *, now_ms: int | None = None
+    ) -> None:
+        """Insert one `queued` run per `pending` entry and advance the cursor
+        to `new_cursor`, atomically (one connection, one commit — spec §6
+        "Advance the cursor in the same transaction").
+
+        Coalescing (spec §6): before inserting a run for `(install,
+        rel_path)`, any existing `queued`/`retry` run for that same pair is
+        marked `superseded` first (with `finished_at` set, so it becomes
+        eligible for the housekeeping sweep like any other terminal run). A
+        `running` row is never touched — the new run simply queues behind it
+        and becomes claimable once it finishes (`claim_next`'s
+        not-already-running check).
+
+        Called even when `pending` is empty: the cursor must still advance
+        past events that matched no install (spec §6 amendment).
+        """
+        moment = now_ms if now_ms is not None else _now_ms()
+        with closing(self._connect()) as conn:
+            for run in pending:
+                conn.execute(
+                    """
+                    UPDATE run SET status = 'superseded', finished_at = ?
+                    WHERE install = ? AND rel_path = ? AND status IN ('queued', 'retry')
+                    """,
+                    (moment, run.install, run.rel_path),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO run (
+                        install, workflow_name, workflow_version, event_id, rel_path,
+                        attempt, status
+                    ) VALUES (?, ?, ?, ?, ?, 1, 'queued')
+                    """,
+                    (
+                        run.install,
+                        run.workflow_name,
+                        run.workflow_version,
+                        run.event_id,
+                        run.rel_path,
+                    ),
+                )
+            conn.execute(
+                """
+                INSERT INTO runner_meta (id, cursor_event_id) VALUES (1, ?)
+                ON CONFLICT(id) DO UPDATE SET cursor_event_id = excluded.cursor_event_id
+                """,
+                (new_cursor,),
+            )
+            conn.commit()
+
+    # --- consumer API: claiming (Phase 3e) ---
+
+    _CLAIM_COLUMNS = """
+        r.id AS run_id, r.install, r.workflow_name, r.workflow_version,
+        r.rel_path, r.attempt, r.event_id,
+        e.type AS event_type, e.content_hash, e.size, e.source,
+        e.origin_equipment, e.sync_pass, e.settled, e.target_install, e.created_at
+    """
+
+    def claim_next(self, now_ms: int) -> ClaimedRun | None:
+        """Atomically pick one eligible run and mark it `running`.
+
+        Eligible: `status = 'queued'`, or `status = 'retry'` with
+        `next_attempt_at <= now_ms`, for an `(install, rel_path)` pair with
+        nothing currently `running` (per-path serialization, spec §6). Picks
+        the oldest eligible row (`ORDER BY r.id`). Serialized through
+        `self._claim_lock` so two threads never claim the same row.
+        """
+        with self._claim_lock, closing(self._connect()) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                f"""
+                SELECT {self._CLAIM_COLUMNS}
+                FROM run r JOIN event e ON e.id = r.event_id
+                WHERE (
+                    r.status = 'queued'
+                    OR (r.status = 'retry' AND r.next_attempt_at <= ?)
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM run r2
+                    WHERE r2.install = r.install AND r2.rel_path = r.rel_path
+                      AND r2.status = 'running'
+                )
+                ORDER BY r.id
+                LIMIT 1
+                """,
+                (now_ms,),
+            ).fetchone()
+            if row is None:
+                return None
+            conn.execute(
+                "UPDATE run SET status = 'running', started_at = ? WHERE id = ?",
+                (now_ms, row["run_id"]),
+            )
+            conn.commit()
+            return _row_to_claimed_run(row)
+
+    def running_runs(self) -> list[ClaimedRun]:
+        """Every row currently `status = 'running'` — the crash-recovery read
+        side (spec §6): at startup, any such row belongs to a dead process
+        (this process just started), and `runner.py` reschedules it under
+        the normal retry policy."""
+        with closing(self._connect()) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                f"""
+                SELECT {self._CLAIM_COLUMNS}
+                FROM run r JOIN event e ON e.id = r.event_id
+                WHERE r.status = 'running'
+                ORDER BY r.id
+                """
+            ).fetchall()
+            return [_row_to_claimed_run(row) for row in rows]
+
+    # --- consumer API: finalize (Phase 3e) ---
+
+    def finalize_success(
+        self, run_id: int, exit_code: int | None, stdout: str, stderr: str, finished_at_ms: int
+    ) -> None:
+        self._set_terminal(run_id, "success", exit_code, stdout, stderr, finished_at_ms)
+
+    def finalize_failed(
+        self, run_id: int, exit_code: int | None, stdout: str, stderr: str, finished_at_ms: int
+    ) -> None:
+        self._set_terminal(run_id, "failed", exit_code, stdout, stderr, finished_at_ms)
+
+    def finalize_retry(
+        self,
+        run_id: int,
+        next_attempt: int,
+        next_attempt_at_ms: int,
+        exit_code: int | None,
+        stdout: str,
+        stderr: str,
+        finished_at_ms: int,
+    ) -> None:
+        """Reschedule the same row for another attempt: increments `attempt`
+        to `next_attempt`, sets `next_attempt_at`, and records this attempt's
+        exit_code/stdout/stderr/finished_at (overwriting the previous
+        attempt's, matching the run log's one-row-per-(install,rel_path)-
+        chain shape rather than one row per attempt)."""
+        with closing(self._connect()) as conn:
+            conn.execute(
+                """
+                UPDATE run
+                SET status = 'retry', attempt = ?, next_attempt_at = ?,
+                    exit_code = ?, stdout = ?, stderr = ?, finished_at = ?
+                WHERE id = ?
+                """,
+                (
+                    next_attempt,
+                    next_attempt_at_ms,
+                    exit_code,
+                    stdout,
+                    stderr,
+                    finished_at_ms,
+                    run_id,
+                ),
+            )
+            conn.commit()
+
+    def _set_terminal(
+        self,
+        run_id: int,
+        status: str,
+        exit_code: int | None,
+        stdout: str,
+        stderr: str,
+        finished_at_ms: int,
+    ) -> None:
+        with closing(self._connect()) as conn:
+            conn.execute(
+                """
+                UPDATE run
+                SET status = ?, exit_code = ?, stdout = ?, stderr = ?, finished_at = ?
+                WHERE id = ?
+                """,
+                (status, exit_code, stdout, stderr, finished_at_ms, run_id),
+            )
+            conn.commit()
+
+    # --- housekeeping (Phase 3e) ---
+
+    def sweep(self, retention_days: int, *, now_ms: int | None = None) -> None:
+        """Delete `run` rows older than `retention_days` (by `finished_at`,
+        terminal statuses only: `success`/`failed`/`superseded` — all three
+        set `finished_at`), then `event` rows older than `retention_days`
+        with zero referencing `run` rows.
+
+        Run rows first, then event rows, deliberately (spec §8 "Housekeeping"
+        + plan Phase 3e): a `run` references its `event` via `event_id`, so
+        sweeping events first could delete a row a not-yet-swept run still
+        points at.
+        """
+        moment = now_ms if now_ms is not None else _now_ms()
+        cutoff = moment - retention_days * 86_400_000
+        with closing(self._connect()) as conn:
+            conn.execute(
+                """
+                DELETE FROM run
+                WHERE finished_at IS NOT NULL AND finished_at < ?
+                  AND status IN ('success', 'failed', 'superseded')
+                """,
+                (cutoff,),
+            )
+            conn.execute(
+                """
+                DELETE FROM event
+                WHERE created_at < ?
+                  AND id NOT IN (SELECT event_id FROM run)
+                """,
+                (cutoff,),
+            )
+            conn.commit()
+
+
+def _row_to_claimed_run(row: sqlite3.Row) -> ClaimedRun:
+    return ClaimedRun(
+        id=row["run_id"],
+        install=row["install"],
+        workflow_name=row["workflow_name"],
+        workflow_version=row["workflow_version"],
+        rel_path=row["rel_path"],
+        attempt=row["attempt"],
+        event=EventRow(
+            id=row["event_id"],
+            type=row["event_type"],
+            rel_path=row["rel_path"],
+            content_hash=row["content_hash"],
+            size=row["size"],
+            source=row["source"],
+            origin_equipment=row["origin_equipment"],
+            sync_pass=row["sync_pass"],
+            settled=bool(row["settled"]),
+            target_install=row["target_install"],
+            created_at=row["created_at"],
+        ),
+    )
+
+
+def _row_to_run(row: sqlite3.Row) -> RunRow:
+    return RunRow(
+        id=row["id"],
+        install=row["install"],
+        workflow_name=row["workflow_name"],
+        workflow_version=row["workflow_version"],
+        event_id=row["event_id"],
+        rel_path=row["rel_path"],
+        attempt=row["attempt"],
+        status=row["status"],
+        next_attempt_at=row["next_attempt_at"],
+        started_at=row["started_at"],
+        finished_at=row["finished_at"],
+        exit_code=row["exit_code"],
+        stdout=row["stdout"],
+        stderr=row["stderr"],
+    )
 
 
 def _row_to_event(row: sqlite3.Row) -> EventRow:
