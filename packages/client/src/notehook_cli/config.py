@@ -51,6 +51,14 @@ class ClientConfig:
     def engine_lock_file(self) -> Path:
         return self.config_dir / "events.db.lock"
 
+    @property
+    def workflows_dir(self) -> Path:
+        return self.config_dir / "workflows"
+
+    @property
+    def workflow_config_dir(self) -> Path:
+        return self.config_dir / "workflow-config"
+
     @classmethod
     def load(cls, config_dir: Path | None = None) -> "ClientConfig":
         config_dir = config_dir or default_config_dir()
