@@ -1,4 +1,4 @@
-# noted-protocol
+# notehook-protocol
 
 Shared pydantic models mirroring the reverse-engineered Supernote API spec
 (`specs/components/schemas/*.yaml`), plus login-hash helpers. Both server and

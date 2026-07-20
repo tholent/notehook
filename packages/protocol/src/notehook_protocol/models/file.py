@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import field_validator
 
-from noted_protocol.models.common import BaseVO, ProtocolModel
+from notehook_protocol.models.common import BaseVO, ProtocolModel
 
 
 class _LenientSize(ProtocolModel):

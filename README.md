@@ -1,6 +1,6 @@
-# noted
+# notehook
 
-noted is a self-hosted replacement for the Supernote cloud sync service, built against the
+notehook is a self-hosted replacement for the Supernote cloud sync service, built against the
 reverse-engineered OpenAPI spec in [specs/](specs/), plus a CLI tool that keeps a
 local directory bidirectionally in sync with the server.
 
@@ -10,9 +10,9 @@ uv workspace with three packages:
 
 | Package | Path | What it is |
 |---|---|---|
-| `noted-protocol` | [packages/protocol/](packages/protocol/) | Shared pydantic DTO/VO models mirroring the spec, plus the login password-hash helpers |
-| `noted-server` | [packages/server/](packages/server/) | FastAPI server implementing the file-sync core: auth, device NAS endpoints, OSS-style upload/download |
-| `noted-cli` | [packages/client/](packages/client/) | CLI client: one-shot `sync` and watch+poll `daemon`, three-way diff with conflict policies |
+| `notehook-protocol` | [packages/protocol/](packages/protocol/) | Shared pydantic DTO/VO models mirroring the spec, plus the login password-hash helpers |
+| `notehook-server` | [packages/server/](packages/server/) | FastAPI server implementing the file-sync core: auth, device NAS endpoints, OSS-style upload/download |
+| `notehook-cli` | [packages/client/](packages/client/) | CLI client: one-shot `sync` and watch+poll `daemon`, three-way diff with conflict policies |
 
 ## Quick start
 
@@ -23,30 +23,30 @@ uv sync --all-packages
 uv run scripts/hash_password.py
 
 # 2. Run the server (single worker only — nonce cache and rate limiter are in-process)
-NOTED_ACCOUNT=you@example.com \
-NOTED_PASSWORD_MD5=<from step 1> \
-NOTED_BASE_URL=http://your-host:8080 \
-uv run noted-server
+NOTEHOOK_ACCOUNT=you@example.com \
+NOTEHOOK_PASSWORD_MD5=<from step 1> \
+NOTEHOOK_BASE_URL=http://your-host:8080 \
+uv run notehook-server
 
 # 3. Configure and run the client
-uv run noted init --server http://your-host:8080 \
+uv run notehook init --server http://your-host:8080 \
     --account you@example.com --dir ~/Supernote
-uv run noted login
-uv run noted sync      # one-shot pass
-uv run noted daemon    # watch + poll continuously
+uv run notehook login
+uv run notehook sync      # one-shot pass
+uv run notehook daemon    # watch + poll continuously
 ```
 
-### Server configuration (env vars, `NOTED_` prefix)
+### Server configuration (env vars, `NOTEHOOK_` prefix)
 
 | Variable | Default | Notes |
 |---|---|---|
-| `NOTED_ACCOUNT` | `user@example.com` | The single account's email |
-| `NOTED_PASSWORD_MD5` | *(empty)* | `md5(plaintext)` hex — see `scripts/hash_password.py` |
-| `NOTED_BASE_URL` | `http://localhost:8080` | Must be reachable *from the device/client* — it's embedded in upload/download URLs |
-| `NOTED_DATA_DIR` | `data` | SQLite db, blobs, trash, captures |
-| `NOTED_DEBUG_CAPTURE` | `false` | Log redacted request/response JSONL to `data/captures/` |
-| `NOTED_MAX_UPLOAD_BYTES` | 2 GiB | Per-file limit, enforced while streaming |
-| `NOTED_TOTAL_CAPACITY_BYTES` | 32 GiB | Account quota (also reported to `get_space_usage`) |
+| `NOTEHOOK_ACCOUNT` | `user@example.com` | The single account's email |
+| `NOTEHOOK_PASSWORD_MD5` | *(empty)* | `md5(plaintext)` hex — see `scripts/hash_password.py` |
+| `NOTEHOOK_BASE_URL` | `http://localhost:8080` | Must be reachable *from the device/client* — it's embedded in upload/download URLs |
+| `NOTEHOOK_DATA_DIR` | `data` | SQLite db, blobs, trash, captures |
+| `NOTEHOOK_DEBUG_CAPTURE` | `false` | Log redacted request/response JSONL to `data/captures/` |
+| `NOTEHOOK_MAX_UPLOAD_BYTES` | 2 GiB | Per-file limit, enforced while streaming |
+| `NOTEHOOK_TOTAL_CAPACITY_BYTES` | 32 GiB | Account quota (also reported to `get_space_usage`) |
 
 ### Conflict policy (client)
 
@@ -65,7 +65,7 @@ Untested against real hardware so far — this is the highest-risk unknown:
    validates the CA chain strictly, this approach may need a firmware-level CA
    install). **Verify this first** — serve just `GET /api/file/query/server`
    and watch whether the TLS handshake completes before investing more time.
-3. Run with `NOTED_DEBUG_CAPTURE=true` and watch `data/captures/*.jsonl`:
+3. Run with `NOTEHOOK_DEBUG_CAPTURE=true` and watch `data/captures/*.jsonl`:
    every unimplemented endpoint the device calls is logged by the catch-all
    route (`errorCode 9999`), which tells you exactly what to build/stub next.
    Captures redact passwords, tokens, and signatures, so they're safe to share.

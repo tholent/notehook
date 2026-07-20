@@ -1,4 +1,4 @@
-"""Server settings, loaded from environment variables with the NOTED_ prefix."""
+"""Server settings, loaded from environment variables with the NOTEHOOK_ prefix."""
 
 import secrets
 from functools import lru_cache
@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="NOTED_")
+    model_config = SettingsConfigDict(env_prefix="NOTEHOOK_")
 
     # Single-account credentials. password_md5 = MD5 hex of the plaintext password;
     # generate with scripts/hash_password.py. The plaintext is never stored server-side.
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     def effective_database_url(self) -> str:
         if self.database_url:
             return self.database_url
-        return f"sqlite:///{self.data_dir / 'noted.db'}"
+        return f"sqlite:///{self.data_dir / 'notehook.db'}"
 
     def ensure_dirs_and_secret(self) -> None:
         for d in (self.data_dir, self.blob_dir, self.trash_dir, self.chunks_dir):

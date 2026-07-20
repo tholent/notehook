@@ -5,9 +5,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from noted_protocol.crypto import login_hash_sha256, password_md5
-from noted_server.config import Settings
-from noted_server.main import create_app
+from notehook_protocol.crypto import login_hash_sha256, password_md5
+from notehook_server.config import Settings
+from notehook_server.main import create_app
 
 TEST_PASSWORD = "correct horse battery staple"
 TEST_ACCOUNT = "chris@example.com"

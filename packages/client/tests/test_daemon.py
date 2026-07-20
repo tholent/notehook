@@ -6,8 +6,8 @@ from pathlib import Path
 
 import httpx
 
-from noted_cli.daemon import SyncDaemon
-from noted_cli.engine import SyncResult
+from notehook_cli.daemon import SyncDaemon
+from notehook_cli.engine import SyncResult
 from tests.conftest import make_api, make_engine
 
 

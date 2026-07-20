@@ -8,10 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from noted_cli import cli
-from noted_cli.config import ClientConfig
-from noted_server.config import Settings
-from noted_server.main import create_app
+from notehook_cli import cli
+from notehook_cli.config import ClientConfig
+from notehook_server.config import Settings
+from notehook_server.main import create_app
 from tests.conftest import TEST_ACCOUNT, TEST_PASSWORD
 
 runner = CliRunner()

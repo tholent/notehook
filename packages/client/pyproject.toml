@@ -1,5 +1,5 @@
 [project]
-name = "noted-cli"
+name = "notehook-cli"
 version = "0.1.0"
 description = "CLI tool that keeps a local directory in sync with a Supernote sync server"
 requires-python = ">=3.12"
@@ -8,35 +8,35 @@ dependencies = [
     "pydantic>=2.10",
     "rich>=13.9",
     "sqlmodel>=0.0.22",
-    "noted-protocol",
+    "notehook-protocol",
     "typer>=0.15",
     "watchfiles>=1.0",
 ]
 
 [project.scripts]
-noted = "noted_cli.cli:app"
+notehook = "notehook_cli.cli:app"
 
 [dependency-groups]
 dev = [
-    "noted-server",
+    "notehook-server",
 ]
 
 [tool.uv.sources]
-noted-server = { workspace = true }
+notehook-server = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/noted_cli"]
+packages = ["src/notehook_cli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=noted_cli --cov-report=term-missing"
+addopts = "--cov=notehook_cli --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["src/noted_cli"]
+source = ["src/notehook_cli"]
 
 [tool.coverage.report]
 fail_under = 80

@@ -1,8 +1,8 @@
-# noted-server
+# notehook-server
 
 FastAPI server implementing the file-sync core of the Supernote device API.
 App factory: `main.py:create_app` (services live on `app.state`); settings via
-`NOTED_*` env vars (`config.py`).
+`NOTEHOOK_*` env vars (`config.py`).
 
 ## Architecture
 

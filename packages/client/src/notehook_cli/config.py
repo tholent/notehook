@@ -1,6 +1,6 @@
 """Client configuration and credential storage.
 
-Config lives in ~/.config/noted/config.toml. Only the access token is
+Config lives in ~/.config/notehook/config.toml. Only the access token is
 persisted (0600 file); the password is used transiently at login and discarded.
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 def default_config_dir() -> Path:
     xdg = os.environ.get("XDG_CONFIG_HOME")
     base = Path(xdg) if xdg else Path.home() / ".config"
-    return base / "noted"
+    return base / "notehook"
 
 
 @dataclass

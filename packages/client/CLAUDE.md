@@ -1,6 +1,6 @@
-# noted-cli
+# notehook-cli
 
-The `noted` CLI: keeps a local directory bidirectionally synced with the
+The `notehook` CLI: keeps a local directory bidirectionally synced with the
 server. Entry point `cli.py` (typer): `init` / `login` / `sync` / `daemon` / `status`.
 
 ## How sync works
@@ -19,7 +19,7 @@ server. Entry point `cli.py` (typer): `init` / `login` / `sync` / `daemon` / `st
 - `daemon.py`: watchfiles thread + poll timer both funnel into one
   debounced loop — sync passes never run concurrently.
 - Credentials: password is transient at `login`; only the token is cached
-  (0600 file under `~/.config/noted/`). Never persist the password.
+  (0600 file under `~/.config/notehook/`). Never persist the password.
 
 ## Tests
 

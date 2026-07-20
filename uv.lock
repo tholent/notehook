@@ -8,10 +8,10 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "noted-cli",
-    "noted-protocol",
-    "noted-server",
-    "noted-workspace",
+    "notehook-cli",
+    "notehook-protocol",
+    "notehook-server",
+    "notehook-workspace",
 ]
 
 [[package]]
@@ -449,12 +449,12 @@ wheels = [
 ]
 
 [[package]]
-name = "noted-cli"
+name = "notehook-cli"
 version = "0.1.0"
 source = { editable = "packages/client" }
 dependencies = [
     { name = "httpx" },
-    { name = "noted-protocol" },
+    { name = "notehook-protocol" },
     { name = "pydantic" },
     { name = "rich" },
     { name = "sqlmodel" },
@@ -464,13 +464,13 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "noted-server" },
+    { name = "notehook-server" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
-    { name = "noted-protocol", editable = "packages/protocol" },
+    { name = "notehook-protocol", editable = "packages/protocol" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "rich", specifier = ">=13.9" },
     { name = "sqlmodel", specifier = ">=0.0.22" },
@@ -479,10 +479,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "noted-server", editable = "packages/server" }]
+dev = [{ name = "notehook-server", editable = "packages/server" }]
 
 [[package]]
-name = "noted-protocol"
+name = "notehook-protocol"
 version = "0.1.0"
 source = { editable = "packages/protocol" }
 dependencies = [
@@ -493,12 +493,12 @@ dependencies = [
 requires-dist = [{ name = "pydantic", specifier = ">=2.10" }]
 
 [[package]]
-name = "noted-server"
+name = "notehook-server"
 version = "0.1.0"
 source = { editable = "packages/server" }
 dependencies = [
     { name = "fastapi" },
-    { name = "noted-protocol" },
+    { name = "notehook-protocol" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
@@ -509,7 +509,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "noted-protocol", editable = "packages/protocol" },
+    { name = "notehook-protocol", editable = "packages/protocol" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pydantic-settings", specifier = ">=2.7" },
     { name = "python-multipart", specifier = ">=0.0.20" },
@@ -518,7 +518,7 @@ requires-dist = [
 ]
 
 [[package]]
-name = "noted-workspace"
+name = "notehook-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 

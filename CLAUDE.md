@@ -1,7 +1,7 @@
-# noted
+# notehook
 
 Self-hosted Supernote cloud-sync replacement: a FastAPI server a real Supernote
-device can be pointed at, plus a `noted` CLI that keeps a local directory in
+device can be pointed at, plus a `notehook` CLI that keeps a local directory in
 bidirectional sync. Built against the reverse-engineered OpenAPI spec in
 `specs/` — **the spec is the contract**; check it before changing any
 request/response shape.
@@ -10,9 +10,9 @@ request/response shape.
 
 uv workspace, three packages (each has its own CLAUDE.md with specifics):
 
-- `packages/protocol/` — `noted_protocol`: shared pydantic DTO/VO models + login hash helpers
-- `packages/server/` — `noted_server`: the FastAPI server
-- `packages/client/` — `noted_cli`: the `noted` CLI (sync engine + daemon)
+- `packages/protocol/` — `notehook_protocol`: shared pydantic DTO/VO models + login hash helpers
+- `packages/server/` — `notehook_server`: the FastAPI server
+- `packages/client/` — `notehook_cli`: the `notehook` CLI (sync engine + daemon)
 
 ## Commands
 
@@ -38,7 +38,7 @@ that call these same make targets — keep Makefile and workflows in lockstep.
 - Some strings look renameable but are protocol-facing — do not touch:
   `bucketName="supernote"`, the `x-access-token` header, all endpoint paths,
   and DTO/VO field names (camelCase/snake_case exactly as in `specs/`).
-- Env config uses the `NOTED_` prefix. Runtime state lives in `data/`
+- Env config uses the `NOTEHOOK_` prefix. Runtime state lives in `data/`
   (gitignored — captures may contain user data, never commit them).
 - Tests favor end-to-end realism: server tests drive real auth+sync sequences
   via `FakeDevice`; client tests run against the real server app in-process.

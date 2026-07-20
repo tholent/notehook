@@ -10,10 +10,10 @@ import time
 
 from sqlmodel import Session, select
 
-from noted_protocol.crypto import login_hash_md5, login_hash_sha256
-from noted_server.config import Settings
-from noted_server.errors import AuthFailed, RateLimited, TokenInvalid
-from noted_server.models import AccessToken, Equipment, User, now_ms
+from notehook_protocol.crypto import login_hash_md5, login_hash_sha256
+from notehook_server.config import Settings
+from notehook_server.errors import AuthFailed, RateLimited, TokenInvalid
+from notehook_server.models import AccessToken, Equipment, User, now_ms
 
 logger = logging.getLogger(__name__)
 

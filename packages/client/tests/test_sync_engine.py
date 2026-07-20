@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 
-from noted_cli.engine import SyncEngine
+from notehook_cli.engine import SyncEngine
 from tests.conftest import make_api, make_engine
 
 

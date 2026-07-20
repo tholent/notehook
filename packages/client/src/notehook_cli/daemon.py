@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from watchfiles import watch
 
-from noted_cli.engine import SyncEngine, SyncResult
+from notehook_cli.engine import SyncEngine, SyncResult
 
 logger = logging.getLogger(__name__)
 

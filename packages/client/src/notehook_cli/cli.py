@@ -1,4 +1,4 @@
-"""noted CLI: init, login, sync, daemon, status."""
+"""notehook CLI: init, login, sync, daemon, status."""
 
 import logging
 import sys
@@ -9,11 +9,11 @@ import httpx
 import typer
 from rich.console import Console
 
-from noted_cli.api_client import ApiError, SupernoteApiClient
-from noted_cli.config import ClientConfig
-from noted_cli.daemon import SyncDaemon
-from noted_cli.engine import POLICIES, SyncEngine, SyncResult
-from noted_cli.state_db import StateDB
+from notehook_cli.api_client import ApiError, SupernoteApiClient
+from notehook_cli.config import ClientConfig
+from notehook_cli.daemon import SyncDaemon
+from notehook_cli.engine import POLICIES, SyncEngine, SyncResult
+from notehook_cli.state_db import StateDB
 
 app = typer.Typer(help="Keep a local directory in sync with a Supernote sync server.")
 console = Console()
@@ -32,7 +32,7 @@ def _connect(config: ClientConfig) -> SupernoteApiClient:
     api = SupernoteApiClient(http, config.equipment_no)
     api.token = config.load_token()
     if api.token is None or not api.validate_token():
-        console.print("[red]Not logged in (or token expired). Run: noted login[/red]")
+        console.print("[red]Not logged in (or token expired). Run: notehook login[/red]")
         raise typer.Exit(2)
     return api
 
@@ -73,7 +73,7 @@ def login(
     """Authenticate and cache an access token (the password is not stored)."""
     config = _load(config_dir)
     if not config.account:
-        console.print("[red]No account configured. Run: noted init[/red]")
+        console.print("[red]No account configured. Run: notehook init[/red]")
         raise typer.Exit(2)
     password = (
         sys.stdin.readline().rstrip("\n")

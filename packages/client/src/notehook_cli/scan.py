@@ -4,9 +4,9 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from noted_cli.state_db import SyncedFile
+from notehook_cli.state_db import SyncedFile
 
-_IGNORED_SUFFIX = ".noted-tmp"
+_IGNORED_SUFFIX = ".notehook-tmp"
 
 
 def file_md5(path: Path) -> str:

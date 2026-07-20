@@ -5,15 +5,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header
 
-from noted_protocol.models.auth import (
+from notehook_protocol.models.auth import (
     LoginDTO,
     LoginVO,
     QueryTokenVO,
     RandomCodeDTO,
     RandomCodeVO,
 )
-from noted_protocol.models.common import BaseVO, ok
-from noted_server.auth.deps import AuthServiceDep, DbDep
+from notehook_protocol.models.common import BaseVO, ok
+from notehook_server.auth.deps import AuthServiceDep, DbDep
 
 router = APIRouter()
 

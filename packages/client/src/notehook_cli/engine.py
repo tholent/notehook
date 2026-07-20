@@ -5,10 +5,10 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from noted_cli.api_client import SupernoteApiClient
-from noted_cli.diff import Action, SyncItem, classify, remote_by_rel_path
-from noted_cli.scan import file_md5, scan_local
-from noted_cli.state_db import StateDB, SyncedFile
+from notehook_cli.api_client import SupernoteApiClient
+from notehook_cli.diff import Action, SyncItem, classify, remote_by_rel_path
+from notehook_cli.scan import file_md5, scan_local
+from notehook_cli.state_db import StateDB, SyncedFile
 
 logger = logging.getLogger(__name__)
 

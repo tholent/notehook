@@ -1,6 +1,6 @@
 """Auth DTO/VO models (specs/components/schemas/auth.yaml)."""
 
-from noted_protocol.models.common import BaseVO, ProtocolModel
+from notehook_protocol.models.common import BaseVO, ProtocolModel
 
 
 class LoginDTO(ProtocolModel):

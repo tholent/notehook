@@ -9,8 +9,8 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
-from noted_protocol.models.common import BaseVO, ok
-from noted_server.auth.deps import SettingsDep
+from notehook_protocol.models.common import BaseVO, ok
+from notehook_server.auth.deps import SettingsDep
 
 router = APIRouter()
 

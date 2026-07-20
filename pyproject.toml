@@ -1,5 +1,5 @@
 [project]
-name = "noted-workspace"
+name = "notehook-workspace"
 version = "0.1.0"
 description = "Self-hosted Supernote sync server and CLI client (workspace root)"
 requires-python = ">=3.12"
@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 members = ["packages/*"]
 
 [tool.uv.sources]
-noted-protocol = { workspace = true }
+notehook-protocol = { workspace = true }
 
 [dependency-groups]
 dev = [

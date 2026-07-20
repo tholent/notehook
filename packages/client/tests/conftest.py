@@ -6,12 +6,12 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from noted_cli.api_client import SupernoteApiClient
-from noted_cli.engine import SyncEngine
-from noted_cli.state_db import StateDB
-from noted_protocol.crypto import password_md5
-from noted_server.config import Settings
-from noted_server.main import create_app
+from notehook_cli.api_client import SupernoteApiClient
+from notehook_cli.engine import SyncEngine
+from notehook_cli.state_db import StateDB
+from notehook_protocol.crypto import password_md5
+from notehook_server.config import Settings
+from notehook_server.main import create_app
 
 TEST_PASSWORD = "hunter2 hunter2"
 TEST_ACCOUNT = "chris@example.com"

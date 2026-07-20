@@ -7,10 +7,10 @@ from typing import Annotated
 from fastapi import Depends, Header, Request
 from sqlmodel import Session
 
-from noted_server.auth.service import AuthService
-from noted_server.config import Settings
-from noted_server.errors import TokenInvalid
-from noted_server.models import AccessToken, Equipment, User
+from notehook_server.auth.service import AuthService
+from notehook_server.config import Settings
+from notehook_server.errors import TokenInvalid
+from notehook_server.models import AccessToken, Equipment, User
 
 
 def get_settings_dep(request: Request) -> Settings:

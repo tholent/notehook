@@ -10,11 +10,11 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from noted_protocol.models.file import FileChunkVO, UploadFileVO
-from noted_server.auth.deps import DbDep
-from noted_server.files.blob_store import BlobStore, validate_inner_name
-from noted_server.files.download_service import DownloadService
-from noted_server.files.upload_service import UploadService
+from notehook_protocol.models.file import FileChunkVO, UploadFileVO
+from notehook_server.auth.deps import DbDep
+from notehook_server.files.blob_store import BlobStore, validate_inner_name
+from notehook_server.files.download_service import DownloadService
+from notehook_server.files.upload_service import UploadService
 
 router = APIRouter()
 

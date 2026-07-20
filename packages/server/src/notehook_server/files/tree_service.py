@@ -8,9 +8,9 @@ import re
 
 from sqlmodel import Session, func, select
 
-from noted_protocol.models.file import EntriesVO, MetadataVO
-from noted_server.errors import InvalidName, InvalidPath, NameConflict, NotFound
-from noted_server.models import ROOT_ID, FileNode, now_ms
+from notehook_protocol.models.file import EntriesVO, MetadataVO
+from notehook_server.errors import InvalidName, InvalidPath, NameConflict, NotFound
+from notehook_server.models import ROOT_ID, FileNode, now_ms
 
 _FORBIDDEN_NAME = re.compile(r"[/\\\x00-\x1f]")
 

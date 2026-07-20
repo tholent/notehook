@@ -1,4 +1,4 @@
-from noted_protocol.models.auth import (
+from notehook_protocol.models.auth import (
     LoginDTO,
     LoginVO,
     QueryTokenVO,

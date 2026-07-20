@@ -6,17 +6,17 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import Session
 
-from noted_protocol.models.common import fail
-from noted_server.auth.service import AuthService
-from noted_server.config import Settings, get_settings
-from noted_server.db import create_db_engine
-from noted_server.debug.capture_middleware import RequestCaptureMiddleware
-from noted_server.errors import AppError, app_error_handler
-from noted_server.files.blob_store import BlobStore
-from noted_server.files.download_service import DownloadService
-from noted_server.files.upload_service import UploadService
-from noted_server.routers import auth as auth_router
-from noted_server.routers import files_device, oss, stubs
+from notehook_protocol.models.common import fail
+from notehook_server.auth.service import AuthService
+from notehook_server.config import Settings, get_settings
+from notehook_server.db import create_db_engine
+from notehook_server.debug.capture_middleware import RequestCaptureMiddleware
+from notehook_server.errors import AppError, app_error_handler
+from notehook_server.files.blob_store import BlobStore
+from notehook_server.files.download_service import DownloadService
+from notehook_server.files.upload_service import UploadService
+from notehook_server.routers import auth as auth_router
+from notehook_server.routers import files_device, oss, stubs
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     settings.ensure_dirs_and_secret()
 
-    app = FastAPI(title="noted server", docs_url=None, redoc_url=None)
+    app = FastAPI(title="notehook server", docs_url=None, redoc_url=None)
     app.state.settings = settings
     app.state.engine = create_db_engine(settings)
     app.state.auth_service = AuthService(settings)

@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from noted_protocol.crypto import login_hash_sha256, password_md5
-from noted_protocol.models.file import EntriesVO
+from notehook_protocol.crypto import login_hash_sha256, password_md5
+from notehook_protocol.models.file import EntriesVO
 
 
 class ApiError(RuntimeError):
@@ -142,7 +142,7 @@ class SupernoteApiClient:
         resp = self._http.get(vo["url"])
         resp.raise_for_status()
         dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest.with_name(dest.name + ".noted-tmp")
+        tmp = dest.with_name(dest.name + ".notehook-tmp")
         tmp.write_bytes(resp.content)
         tmp.replace(dest)
         return str(vo.get("content_hash") or hashlib.md5(resp.content).hexdigest())

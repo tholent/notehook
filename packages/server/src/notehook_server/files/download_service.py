@@ -5,9 +5,9 @@ import hmac
 import secrets
 import time
 
-from noted_server.auth.service import TTLStore
-from noted_server.config import Settings
-from noted_server.errors import SignatureInvalid
+from notehook_server.auth.service import TTLStore
+from notehook_server.config import Settings
+from notehook_server.errors import SignatureInvalid
 
 
 class DownloadService:

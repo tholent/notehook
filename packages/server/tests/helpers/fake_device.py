@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from noted_protocol.crypto import login_hash_sha256, password_md5
+from notehook_protocol.crypto import login_hash_sha256, password_md5
 
 
 class FakeDevice:

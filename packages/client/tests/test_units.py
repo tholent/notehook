@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from noted_cli.config import ClientConfig
-from noted_cli.engine import conflict_copy_name
-from noted_cli.scan import file_md5, scan_local
+from notehook_cli.config import ClientConfig
+from notehook_cli.engine import conflict_copy_name
+from notehook_cli.scan import file_md5, scan_local
 
 
 def test_conflict_copy_name_with_extension() -> None:
@@ -32,7 +32,7 @@ def test_file_md5(tmp_path: Path) -> None:
 def test_scan_skips_hidden_and_tmp(tmp_path: Path) -> None:
     (tmp_path / "keep.txt").write_bytes(b"k")
     (tmp_path / ".skip").write_bytes(b"s")
-    (tmp_path / "part.noted-tmp").write_bytes(b"p")
+    (tmp_path / "part.notehook-tmp").write_bytes(b"p")
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "nested.txt").write_bytes(b"n")
     result = scan_local(tmp_path)

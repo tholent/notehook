@@ -12,7 +12,7 @@ import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
-from noted_server.errors import InvalidPath, UploadError
+from notehook_server.errors import InvalidPath, UploadError
 
 _INNER_NAME = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"

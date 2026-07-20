@@ -10,7 +10,7 @@ Error codes are our own invention (the spec only documents '0000' = success).
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from noted_protocol.models.common import fail
+from notehook_protocol.models.common import fail
 
 
 class AppError(Exception):

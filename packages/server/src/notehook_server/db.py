@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
-from noted_server.config import Settings
+from notehook_server.config import Settings
 
 
 def create_db_engine(settings: Settings) -> Engine:

@@ -5,7 +5,7 @@ import time
 from fastapi import APIRouter, Request
 from sqlmodel import select
 
-from noted_protocol.models.file import (
+from notehook_protocol.models.file import (
     AllocationVO,
     CapacityLocalDTO,
     CapacityLocalVO,
@@ -35,13 +35,13 @@ from noted_protocol.models.file import (
     SynchronousStartLocalDTO,
     SynchronousStartLocalVO,
 )
-from noted_server.auth.deps import CurrentDep, DbDep, SettingsDep
-from noted_server.errors import NotFound
-from noted_server.files import tree_service
-from noted_server.files.blob_store import BlobStore
-from noted_server.files.download_service import DownloadService
-from noted_server.files.upload_service import UploadService
-from noted_server.models import ROOT_ID, SyncSession, now_ms
+from notehook_server.auth.deps import CurrentDep, DbDep, SettingsDep
+from notehook_server.errors import NotFound
+from notehook_server.files import tree_service
+from notehook_server.files.blob_store import BlobStore
+from notehook_server.files.download_service import DownloadService
+from notehook_server.files.upload_service import UploadService
+from notehook_server.models import ROOT_ID, SyncSession, now_ms
 
 router = APIRouter()
 

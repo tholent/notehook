@@ -7,9 +7,9 @@ only" / "changed remotely only" / true conflicts, and deletes from never-seen.
 from dataclasses import dataclass
 from enum import Enum
 
-from noted_cli.scan import LocalFile
-from noted_cli.state_db import SyncedFile
-from noted_protocol.models.file import EntriesVO
+from notehook_cli.scan import LocalFile
+from notehook_cli.state_db import SyncedFile
+from notehook_protocol.models.file import EntriesVO
 
 
 class Action(Enum):

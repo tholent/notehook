@@ -7,11 +7,11 @@ from pathlib import Path
 
 from sqlmodel import Session, select
 
-from noted_server.config import Settings
-from noted_server.errors import QuotaExceeded, SignatureInvalid, UploadError
-from noted_server.files import tree_service
-from noted_server.files.blob_store import BlobStore, make_inner_name
-from noted_server.models import FileNode, UploadSession, now_ms
+from notehook_server.config import Settings
+from notehook_server.errors import QuotaExceeded, SignatureInvalid, UploadError
+from notehook_server.files import tree_service
+from notehook_server.files.blob_store import BlobStore, make_inner_name
+from notehook_server.models import FileNode, UploadSession, now_ms
 
 
 class UploadService:

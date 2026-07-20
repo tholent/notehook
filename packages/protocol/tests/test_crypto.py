@@ -1,6 +1,6 @@
 import hashlib
 
-from noted_protocol.crypto import (
+from notehook_protocol.crypto import (
     login_hash_md5,
     login_hash_sha256,
     md5_hex,

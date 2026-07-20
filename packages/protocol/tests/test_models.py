@@ -1,5 +1,5 @@
-from noted_protocol.models.common import BaseVO, fail, ok
-from noted_protocol.models.file import (
+from notehook_protocol.models.common import BaseVO, fail, ok
+from notehook_protocol.models.file import (
     EntriesVO,
     FileUploadApplyLocalDTO,
     FileUploadFinishLocalDTO,

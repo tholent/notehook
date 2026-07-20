@@ -28,8 +28,8 @@ test-client:
 
 check: lint typecheck test ## Everything CI runs
 
-serve: ## Run the server locally (expects NOTED_* env vars)
-	uv run noted-server
+serve: ## Run the server locally (expects NOTEHOOK_* env vars)
+	uv run notehook-server
 
 clean:
 	rm -rf .venv .pytest_cache .mypy_cache .ruff_cache

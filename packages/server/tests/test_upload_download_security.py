@@ -5,8 +5,8 @@ import hashlib
 import pytest
 from fastapi.testclient import TestClient
 
-from noted_server.config import Settings
-from noted_server.main import create_app
+from notehook_server.config import Settings
+from notehook_server.main import create_app
 from tests.conftest import TEST_ACCOUNT, TEST_PASSWORD, do_login
 from tests.helpers.fake_device import FakeDevice
 

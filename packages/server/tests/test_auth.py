@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from noted_protocol.crypto import login_hash_md5, login_hash_sha256, password_md5
+from notehook_protocol.crypto import login_hash_md5, login_hash_sha256, password_md5
 from tests.conftest import TEST_ACCOUNT, TEST_PASSWORD, do_login
 
 
