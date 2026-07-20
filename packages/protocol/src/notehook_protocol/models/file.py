@@ -66,6 +66,9 @@ class EntriesVO(ProtocolModel):
     size: int | None = None
     lastUpdateTime: int | None = None
     parent_path: str | None = None
+    # notehook extension, not in specs/: equipment_no that last modified the
+    # node. Consumed by the notehook CLI for workflow event attribution.
+    last_modified_by: str | None = None
 
 
 # --- Folder operations ---

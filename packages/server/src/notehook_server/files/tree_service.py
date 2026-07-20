@@ -81,6 +81,7 @@ def to_entry(session: Session, node: FileNode) -> EntriesVO:
         size=node.size,
         lastUpdateTime=node.last_update_time,
         parent_path=parent_path,
+        last_modified_by=node.last_modified_by or "",
     )
 
 
@@ -122,6 +123,7 @@ def list_entries(
                     size=child.size,
                     lastUpdateTime=child.last_update_time,
                     parent_path=prefix or "/",
+                    last_modified_by=child.last_modified_by or "",
                 )
             )
             if recursive and child.is_folder:
