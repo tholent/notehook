@@ -14,24 +14,34 @@ exposes `workflows_app = typer.Typer()`, registered in
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
 import tomllib
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
+from watchfiles import watch
 
-from notehook_cli.config import ClientConfig
-from notehook_cli.workflows.events import EventLog, RunRow
+from notehook_cli.config import ClientConfig, WorkflowsConfig
+from notehook_cli.lock import LockError, file_lock
+from notehook_cli.scan import file_md5, scan_local
+from notehook_cli.state_db import StateDB
+from notehook_cli.workflows.events import EventLog, EventRow, RunRow
 from notehook_cli.workflows.installs import (
     BrokenInstall,
     Install,
     InstallError,
+    compile_path_glob,
     discover,
     parse_install_config,
     resolve_workflow_path,
@@ -42,6 +52,9 @@ from notehook_cli.workflows.manifest import (
     parse_manifest,
     parse_pep723_metadata,
 )
+from notehook_cli.workflows.runner import Runner
+
+logger = logging.getLogger(__name__)
 
 workflows_app = typer.Typer(help="Manage installed workflows (spec §5/§8).")
 console = Console()
@@ -65,6 +78,10 @@ _PathsOpt = Annotated[
 ]
 _YesOpt = Annotated[
     bool, typer.Option("--yes", help="Non-interactive: fail instead of prompting")
+]
+_GlobOpt = Annotated[
+    list[str] | None,
+    typer.Option("--glob", help="Narrow further to files also matching this glob; may repeat"),
 ]
 
 
@@ -688,5 +705,406 @@ def list_installs(config_dir: ConfigDirOpt = None) -> None:
     console.print(table)
 
 
-# Phase 5 (docs/workflow-implementation-plan.md): `serve`, `run`, `backfill`,
-# `logs` are appended below this line, in that CLI-surface-table order.
+# --- Phase 5: run / backfill / logs / serve (spec §6, §8) ---
+#
+# Operational half of the CLI surface table, appended below `list` in spec
+# §8's literal order: run, backfill, logs, serve.
+
+
+def _lookup_install(config: ClientConfig, alias: str) -> Install:
+    """Shared by `run`/`backfill`: resolve one alias to a healthy `Install`,
+    failing clearly (not with a KeyError/AttributeError) for a missing or
+    broken one."""
+    installs = discover(config.workflows_dir, config.workflow_config_dir)
+    entry = installs.get(alias)
+    if entry is None:
+        raise _fail(f"no install found for alias '{alias}'")
+    if isinstance(entry, BrokenInstall):
+        raise _fail(f"install '{alias}' is broken: {entry.error}")
+    return entry
+
+
+# --- run ---
+
+
+@workflows_app.command(name="run")
+def run_workflow(
+    alias: Annotated[str, typer.Argument(help="Install alias")],
+    path: Annotated[
+        Path, typer.Option("--path", help="File to trigger the workflow on")
+    ],
+    wait: Annotated[
+        bool,
+        typer.Option("--wait", help="Run synchronously and wait for the result (CI-friendly)"),
+    ] = False,
+    config_dir: ConfigDirOpt = None,
+) -> None:
+    """Manually trigger `alias` on one file: appends a `manual` event
+    targeted at it, bypassing its glob/`on` filters (spec §8).
+
+    Without `--wait`, this is fire-and-forget: the event is appended and the
+    command returns immediately, to be picked up by a live `serve` (or a
+    later `run --wait`/poll). With `--wait`, it acquires the runner lock
+    itself, drives one intake+execute step, and reports the outcome -- this
+    fails clearly (does not race) if a `serve` (or another `run --wait`) is
+    already holding the lock, per the single-runner-process invariant
+    (runner.py module docstring, "Own-instance guard").
+    """
+    _validate_alias(alias)
+    config = _load(config_dir)
+    sync_root = config.sync_root.expanduser().resolve()
+
+    resolved = path.expanduser().resolve()
+    try:
+        rel_path = resolved.relative_to(sync_root).as_posix()
+    except ValueError as exc:
+        raise _fail(f"{resolved} is not inside the sync root {sync_root}") from exc
+
+    _lookup_install(config, alias)
+
+    state = StateDB(config.state_db_file).all()
+    event_type = "updated" if rel_path in state else "created"
+
+    if resolved.is_file():
+        content_hash = file_md5(resolved)
+        size = resolved.stat().st_size
+    else:
+        content_hash = ""
+        size = 0
+
+    event_log = EventLog(config.events_db_file)
+    event_id = event_log.append_settled(
+        event_type,
+        rel_path,
+        content_hash,
+        size,
+        "manual",
+        config.equipment_no,
+        str(uuid.uuid4()),
+        target_install=alias,
+    )
+    console.print(
+        f"Queued manual event [bold]{event_id}[/bold] for '{alias}' ({rel_path}, {event_type})."
+    )
+
+    if not wait:
+        return
+
+    try:
+        with file_lock(config.runner_lock_file):
+            runner = Runner(
+                event_log,
+                config.workflows_dir,
+                config.workflow_config_dir,
+                sync_root,
+                config.equipment_no,
+                max_parallel=config.workflows.max_parallel,
+            )
+            runner.intake_step()
+            runner.run_pending()
+    except LockError as exc:
+        raise _fail(
+            f"could not run synchronously: {exc} "
+            f"(is 'notehook workflows serve' or another 'run --wait' already running?)"
+        ) from exc
+
+    matching = [r for r in event_log.all_runs() if r.event_id == event_id]
+    if not matching:
+        console.print(
+            "[yellow]No run was queued for this event "
+            "(install may be disabled or skip_own_changes dropped it).[/yellow]"
+        )
+        return
+
+    any_failed = False
+    for run_row in matching:
+        color = "green" if run_row.status == "success" else "red"
+        console.print(
+            f"  run {run_row.id}: [{color}]{run_row.status}[/{color}] "
+            f"(exit={run_row.exit_code}, attempt={run_row.attempt})"
+        )
+        if run_row.status == "failed":
+            any_failed = True
+    if any_failed:
+        raise typer.Exit(1)
+
+
+# --- backfill ---
+
+
+@workflows_app.command()
+def backfill(
+    alias: Annotated[str, typer.Argument(help="Install alias")],
+    glob: _GlobOpt = None,
+    config_dir: ConfigDirOpt = None,
+) -> None:
+    """Append `created`/`backfill` events for every existing file matching
+    `alias`'s own trigger paths (narrowed, never widened, by `--glob`) --
+    spec §8. Only appends events; never executes anything itself (that's
+    `serve`'s or `run --wait`'s job).
+
+    All files queued by one `backfill` invocation share a single `sync_pass`
+    uuid (a documented choice: this is one logical batch, not N independent
+    passes -- matching how a real sync pass groups its events).
+    """
+    _validate_alias(alias)
+    config = _load(config_dir)
+    install = _lookup_install(config, alias)
+
+    extra_patterns = [compile_path_glob(g) for g in (glob or [])]
+    local_files = scan_local(config.sync_root)
+    event_log = EventLog(config.events_db_file)
+    sync_pass = str(uuid.uuid4())
+
+    count = 0
+    for rel_path in sorted(local_files):
+        local_file = local_files[rel_path]
+        if local_file.is_folder:
+            continue
+        if not install.matches_path(rel_path):
+            continue
+        if extra_patterns and not any(p.fullmatch(rel_path) for p in extra_patterns):
+            continue
+        event_log.append_settled(
+            "created",
+            rel_path,
+            local_file.content_hash(),
+            local_file.size,
+            "backfill",
+            "",
+            sync_pass,
+            target_install=alias,
+        )
+        count += 1
+
+    console.print(f"Queued [bold]{count}[/bold] backfill event(s) for '{alias}'.")
+
+
+# --- logs ---
+
+_LOG_DEFAULT_LIMIT = 20
+# Follow-mode poll cadence -- deliberately short and distinct from the
+# runner's own `poll_interval_seconds` (spec: "NOT the daemon's poll
+# interval"); this is purely a display refresh rate.
+_LOGS_FOLLOW_POLL_SECONDS = 1.0
+
+_STATUS_COLORS = {
+    "success": "green",
+    "failed": "red",
+    "running": "cyan",
+    "retry": "yellow",
+    "superseded": "dim",
+    "queued": "white",
+}
+
+
+def _filter_runs(runs: list[RunRow], *, alias: str | None, failed: bool) -> list[RunRow]:
+    result = runs
+    if alias is not None:
+        result = [r for r in result if r.install == alias]
+    if failed:
+        result = [r for r in result if r.status == "failed"]
+    return result
+
+
+def _fmt_epoch_ms(value: int | None) -> str:
+    if value is None:
+        return "-"
+    return datetime.fromtimestamp(value / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _output_indicator(text: str | None) -> str:
+    if not text:
+        return "-"
+    marker = " (truncated)" if "[truncated:" in text else ""
+    return f"{len(text)}b{marker}"
+
+
+def _runs_table(runs: list[RunRow], events_by_id: dict[int, EventRow]) -> Table:
+    table = Table()
+    table.add_column("Run")
+    table.add_column("Install")
+    table.add_column("Path")
+    table.add_column("Type/Source")
+    table.add_column("Status")
+    table.add_column("Attempt")
+    table.add_column("Exit")
+    table.add_column("Started")
+    table.add_column("Finished")
+    table.add_column("stdout")
+    table.add_column("stderr")
+
+    for run_row in runs:
+        event = events_by_id.get(run_row.event_id)
+        type_source = f"{event.type}/{event.source}" if event is not None else "-"
+        color = _STATUS_COLORS.get(run_row.status, "white")
+        table.add_row(
+            str(run_row.id),
+            run_row.install,
+            run_row.rel_path,
+            type_source,
+            f"[{color}]{run_row.status}[/{color}]",
+            str(run_row.attempt),
+            str(run_row.exit_code) if run_row.exit_code is not None else "-",
+            _fmt_epoch_ms(run_row.started_at),
+            _fmt_epoch_ms(run_row.finished_at),
+            _output_indicator(run_row.stdout),
+            _output_indicator(run_row.stderr),
+        )
+    return table
+
+
+def _print_runs(event_log: EventLog, runs: list[RunRow]) -> None:
+    events_by_id = {e.id: e for e in event_log.all_events()}
+    console.print(_runs_table(runs, events_by_id))
+
+
+def _logs_follow(event_log: EventLog, *, alias: str | None, failed: bool) -> None:
+    """Poll `all_runs()` every `_LOGS_FOLLOW_POLL_SECONDS`, printing only
+    rows that are new or whose (status, finished_at) changed since the last
+    poll, until Ctrl-C (mirrors `daemon`'s KeyboardInterrupt -> clean-stop
+    shape)."""
+    seen: dict[int, tuple[str, int | None]] = {}
+    try:
+        while True:
+            runs = _filter_runs(event_log.all_runs(), alias=alias, failed=failed)
+            changed = [r for r in runs if seen.get(r.id) != (r.status, r.finished_at)]
+            if changed:
+                _print_runs(event_log, changed)
+            for r in runs:
+                seen[r.id] = (r.status, r.finished_at)
+            time.sleep(_LOGS_FOLLOW_POLL_SECONDS)
+    except KeyboardInterrupt:
+        console.print("Stopped.")
+
+
+@workflows_app.command()
+def logs(
+    alias: Annotated[
+        str | None, typer.Option("--alias", help="Filter to one install alias")
+    ] = None,
+    failed: Annotated[bool, typer.Option("--failed", help="Only show failed runs")] = False,
+    follow: Annotated[
+        bool, typer.Option("--follow", help="Poll for new/changed runs until Ctrl-C")
+    ] = False,
+    limit: Annotated[
+        int, typer.Option("-n", "--limit", help="Show the most recent N runs")
+    ] = _LOG_DEFAULT_LIMIT,
+    config_dir: ConfigDirOpt = None,
+) -> None:
+    """Run log viewer (spec §8)."""
+    config = _load(config_dir)
+    event_log = EventLog(config.events_db_file)
+
+    if follow:
+        _logs_follow(event_log, alias=alias, failed=failed)
+        return
+
+    runs = _filter_runs(event_log.all_runs(), alias=alias, failed=failed)
+    if limit > 0:
+        runs = runs[-limit:]
+    _print_runs(event_log, runs)
+
+
+# --- serve ---
+
+# Housekeeping runs roughly once per day (spec §6 "Housekeeping"), tracked by
+# elapsed wall time rather than tick count so it's independent of
+# `poll_interval_seconds`.
+_HOUSEKEEPING_INTERVAL_SECONDS = 86_400.0
+
+
+def _serve_watch_loop(
+    workflows_dir: Path, workflow_config_dir: Path, stop: threading.Event, wake: threading.Event
+) -> None:
+    """Mirrors `daemon.py`'s `_watch_loop` almost exactly: its only job is to
+    shorten the wait between polls by setting `wake` on any change under
+    `workflows_dir`/`workflow_config_dir`. No incremental "reparse only the
+    changed install" bookkeeping is needed here -- `Runner.intake_step()`/
+    `run_pending()` already call `installs.discover()` fresh on every call,
+    so hot reload is automatic (spec §6 "Hot reload")."""
+    workflows_dir.mkdir(parents=True, exist_ok=True)
+    workflow_config_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        for _changes in watch(workflows_dir, workflow_config_dir, stop_event=stop, debounce=1600):
+            wake.set()
+    except Exception:
+        logger.exception("workflow install watcher stopped")
+
+
+def _serve_loop(
+    runner: Runner,
+    workflows_cfg: WorkflowsConfig,
+    stop: threading.Event,
+    wake: threading.Event,
+) -> None:
+    """One `intake_step` + `run_pending` per tick, woken early by `wake`
+    (hot-reload signal) or after `poll_interval_seconds`, with a daily
+    housekeeping sweep. On `stop`, any in-flight `run_pending()` finishes
+    naturally before the loop exits (it's only re-entered after re-checking
+    `stop.is_set()`) -- satisfying "finish running jobs, no new claims"
+    without any cancellation machinery."""
+    last_sweep = time.monotonic()
+    while not stop.is_set():
+        runner.intake_step()
+        runner.run_pending()
+        now = time.monotonic()
+        if now - last_sweep >= _HOUSEKEEPING_INTERVAL_SECONDS:
+            runner.sweep(workflows_cfg.retention_days)
+            last_sweep = now
+        wake.wait(timeout=workflows_cfg.poll_interval_seconds)
+        wake.clear()
+
+
+@workflows_app.command()
+def serve(config_dir: ConfigDirOpt = None) -> None:
+    """Run the workflow runner daemon: poll loop (intake + execute) with hot
+    reload and daily housekeeping (spec §6). One runner per config dir at a
+    time -- held for this process's entire lifetime via the same
+    `runner_lock_file` flock the module docstring's "Own-instance guard"
+    describes; a second `serve` (or a `run --wait`) fails clearly instead of
+    racing this one.
+    """
+    logging.basicConfig(level=logging.INFO)
+    config = _load(config_dir)
+    workflows_cfg = config.workflows
+
+    try:
+        with file_lock(config.runner_lock_file):
+            event_log = EventLog(config.events_db_file)
+            runner = Runner(
+                event_log,
+                config.workflows_dir,
+                config.workflow_config_dir,
+                config.sync_root,
+                config.equipment_no,
+                max_parallel=workflows_cfg.max_parallel,
+            )
+            console.print(
+                f"Serving workflows from [bold]{config.workflows_dir}[/bold], "
+                f"polling every {workflows_cfg.poll_interval_seconds}s, "
+                f"max_parallel={workflows_cfg.max_parallel}. Ctrl-C to stop."
+            )
+            recovered = runner.recover_crashed()
+            if recovered:
+                console.print(f"Recovered {recovered} crashed run(s) from a previous instance.")
+
+            stop = threading.Event()
+            wake = threading.Event()
+            watcher = threading.Thread(
+                target=_serve_watch_loop,
+                args=(config.workflows_dir, config.workflow_config_dir, stop, wake),
+                daemon=True,
+            )
+            watcher.start()
+            try:
+                _serve_loop(runner, workflows_cfg, stop, wake)
+            except KeyboardInterrupt:
+                stop.set()
+                wake.set()
+                console.print("Stopped.")
+            watcher.join(timeout=5)
+    except LockError as exc:
+        raise _fail(
+            f"could not start: {exc} (is another 'notehook workflows serve' already running?)"
+        ) from exc

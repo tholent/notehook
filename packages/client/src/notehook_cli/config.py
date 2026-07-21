@@ -18,6 +18,17 @@ def default_config_dir() -> Path:
 
 
 @dataclass
+class WorkflowsConfig:
+    """`[workflows]` section of config.toml (docs/workflow-spec.md §6
+    "Housekeeping" + docs/workflow-implementation-plan.md Phase 5): runner
+    settings for `notehook workflows serve`."""
+
+    poll_interval_seconds: int = 2
+    max_parallel: int = 2
+    retention_days: int = 90
+
+
+@dataclass
 class ClientConfig:
     server_url: str = "http://localhost:8080"
     account: str = ""
@@ -26,6 +37,7 @@ class ClientConfig:
     conflict_policy: str = "keep-both"  # keep-both | newest-wins | local-wins | remote-wins
     equipment_no: str = ""
     config_dir: Path = field(default_factory=default_config_dir)
+    workflows: WorkflowsConfig = field(default_factory=WorkflowsConfig)
 
     def __post_init__(self) -> None:
         if not self.equipment_no:
@@ -74,6 +86,9 @@ class ClientConfig:
         if not cfg_file.exists():
             return cls(config_dir=config_dir)
         data = tomllib.loads(cfg_file.read_text())
+        workflows_data = data.get("workflows", {})
+        if not isinstance(workflows_data, dict):
+            workflows_data = {}
         return cls(
             server_url=data.get("server_url", "http://localhost:8080"),
             account=data.get("account", ""),
@@ -82,6 +97,11 @@ class ClientConfig:
             conflict_policy=data.get("conflict_policy", "keep-both"),
             equipment_no=data.get("equipment_no", ""),
             config_dir=config_dir,
+            workflows=WorkflowsConfig(
+                poll_interval_seconds=int(workflows_data.get("poll_interval_seconds", 2)),
+                max_parallel=int(workflows_data.get("max_parallel", 2)),
+                retention_days=int(workflows_data.get("retention_days", 90)),
+            ),
         )
 
     def save(self) -> None:
@@ -93,6 +113,11 @@ class ClientConfig:
             f"poll_interval_seconds = {self.poll_interval_seconds}",
             f'conflict_policy = "{self.conflict_policy}"',
             f'equipment_no = "{self.equipment_no}"',
+            "",
+            "[workflows]",
+            f"poll_interval_seconds = {self.workflows.poll_interval_seconds}",
+            f"max_parallel = {self.workflows.max_parallel}",
+            f"retention_days = {self.workflows.retention_days}",
         ]
         self.config_file.write_text("\n".join(lines) + "\n")
 
