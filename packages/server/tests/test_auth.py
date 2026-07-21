@@ -126,6 +126,42 @@ def test_protected_route_requires_token(client: TestClient) -> None:
     assert resp.json()["errorCode"] == "1002"
 
 
+def test_check_exists_server_known_account(client: TestClient) -> None:
+    # The device sends {"email": ..., "version": ...}; version is ignored.
+    resp = client.post(
+        "/api/official/user/check/exists/server",
+        json={"email": TEST_ACCOUNT.upper(), "version": "202407"},
+    )
+    body = resp.json()
+    assert resp.status_code == 200
+    assert body["success"] is True
+    assert body["errorCode"] == "0000"
+    assert isinstance(body["userId"], int)
+    assert body["dms"]
+    assert body["uniqueMachineId"]
+
+
+def test_check_exists_server_unique_machine_id_is_stable(client: TestClient) -> None:
+    first = client.post(
+        "/api/official/user/check/exists/server", json={"email": TEST_ACCOUNT}
+    ).json()["uniqueMachineId"]
+    second = client.post(
+        "/api/official/user/check/exists/server", json={"email": TEST_ACCOUNT}
+    ).json()["uniqueMachineId"]
+    assert first == second
+
+
+def test_check_exists_server_unknown_account(client: TestClient) -> None:
+    resp = client.post(
+        "/api/official/user/check/exists/server",
+        json={"email": "nobody@example.com", "version": "202407"},
+    )
+    body = resp.json()
+    assert resp.status_code == 200
+    assert body["success"] is False
+    assert body["userId"] is None
+
+
 def test_catch_all_unimplemented(client: TestClient) -> None:
     resp = client.post("/api/file/note/to/pdf", json={"id": 1})
     assert resp.status_code == 200
