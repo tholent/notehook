@@ -1,4 +1,4 @@
-"""Auth DTO/VO models (specs/components/schemas/auth.yaml)."""
+"""Auth DTO/VO models (docs/openapi/components/schemas/authentication.yaml)."""
 
 from notehook_protocol.models.common import BaseVO, ProtocolModel
 
@@ -24,6 +24,11 @@ class LoginVO(BaseVO):
     isBind: str | None = None
     isBindEquipment: str | None = None
     soldOutCount: int | None = None
+    # MFA second-factor exchange (equipment 1/4 only; a device login, equipment
+    # 3, never triggers it). When mfaRequired is true, token is empty and the
+    # client calls login/mfa/verify with mfaToken (valid ~5 min).
+    mfaRequired: bool | None = None
+    mfaToken: str | None = None
 
 
 class RandomCodeDTO(ProtocolModel):
