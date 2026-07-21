@@ -1,0 +1,340 @@
+# Equipment, Reference Data & System paths. Derived from specs/equipment-base-system.md.
+# URLs with more than one HTTP method are combined into a single path-item key.
+
+# ------------------------------------------------------- Equipment
+activateEquipment:
+  post:
+    tags: [Equipment]
+    summary: Activate device
+    operationId: activateEquipment
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ActivateEquipmentDTO" }
+    responses:
+      "200":
+        description: Activation result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+bindEquipment:
+  post:
+    tags: [Equipment]
+    summary: Bind device to account
+    operationId: bindEquipment
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/BindEquipmentDTO" }
+    responses:
+      "200":
+        description: Bind result (one device → one account).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+unbindEquipment:
+  post:
+    tags: [Equipment]
+    summary: Unbind device
+    operationId: unbindEquipment
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/UnbindEquipmentDTO" }
+    responses:
+      "200":
+        description: Unbind result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+bindStatus:
+  post:
+    tags: [Equipment]
+    summary: Query binding status of caller device
+    operationId: bindStatus
+    description: Device serial is read from the equipmentNo header; no request body.
+    responses:
+      "200":
+        description: Binding status.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/BindStatusVO" }
+
+queryUserEquipmentDeprecated:
+  post:
+    tags: [Equipment]
+    summary: "[Deprecated] Paged query of user devices by criteria"
+    operationId: queryUserEquipmentDeprecated
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/QueryEquipmentDTO" }
+    responses:
+      "200":
+        description: Paged user devices.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/QueryEquipmentListVO" }
+
+queryUserEquipmentByNo:
+  post:
+    tags: [Equipment]
+    summary: Query bound user-device by device number
+    operationId: queryUserEquipmentByNo
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/UserEquipmentDTO" }
+    responses:
+      "200":
+        description: Bound user-device record.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/UserEquipmentVO" }
+
+queryEquipmentManualDeprecated:
+  post:
+    tags: [Equipment]
+    summary: "[Deprecated] Query device manual"
+    operationId: queryEquipmentManualDeprecated
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/EquipmentManualDTO" }
+    responses:
+      "200":
+        description: Manual download descriptor.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/EquipmentManualVO" }
+
+queryEquipmentByNoDeprecated:
+  get:
+    tags: [Equipment]
+    summary: "[Deprecated] Query device by number (internal)"
+    operationId: queryEquipmentByNoDeprecated
+    deprecated: true
+    security: []
+    parameters:
+      - { name: equipmentNo, in: path, required: true, schema: { type: string }, description: Device serial number. }
+    responses:
+      "200":
+        description: Raw device (inventory) info (plain POJO, no envelope).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/EquipmentVO" }
+
+queryUserEquipmentByUserId:
+  get:
+    tags: [Equipment]
+    summary: List a user's devices by user id
+    operationId: queryUserEquipmentByUserId
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: integer, format: int64 }, description: User id. }
+    responses:
+      "200":
+        description: The user's device records.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/UserEquipmentListVO" }
+
+deleteByEquipmentNumberDeprecated:
+  delete:
+    tags: [Equipment]
+    summary: "[Deprecated] Delete device by number"
+    operationId: deleteByEquipmentNumberDeprecated
+    deprecated: true
+    parameters:
+      - { name: equipmentNumber, in: path, required: true, schema: { type: string }, description: Device serial number. }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+# ------------------------------------------------------- Dictionary (all deprecated)
+dictionaryResource:
+  get:
+    tags: [Dictionary]
+    summary: "[Deprecated] List dictionary values by name/language"
+    operationId: findDictionaryByName
+    deprecated: true
+    parameters:
+      - { name: name, in: query, required: false, schema: { type: string }, description: Business-code / name type (default TRESOURCETYPE_ID). }
+      - { name: language, in: query, required: false, schema: { type: string }, description: "Language; empty=Chinese, US=English." }
+    responses:
+      "200":
+        description: Raw JSON array (not an envelope).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionarysVO" }
+  post:
+    tags: [Dictionary]
+    summary: "[Deprecated] Fuzzy paged dictionary query"
+    operationId: queryDictionaryList
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionaryVagueDTO" }
+    responses:
+      "200":
+        description: Paged dictionary rows.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionaryVagueListVO" }
+
+queryDictionaryById:
+  get:
+    tags: [Dictionary]
+    summary: "[Deprecated] Get dictionary entry by id"
+    operationId: queryDictionaryById
+    deprecated: true
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+    responses:
+      "200":
+        description: Dictionary entry (plain POJO).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionaryVO" }
+
+queryDictionaryByParam:
+  post:
+    tags: [Dictionary]
+    summary: "[Deprecated] Query dictionary by business code + value"
+    operationId: queryDictionaryByParam
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionaryQueryDTO" }
+    responses:
+      "200":
+        description: Dictionary collection.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionaryListVO" }
+
+queryDictionaryByName:
+  get:
+    tags: [Dictionary]
+    summary: "[Deprecated] Query dictionary by business code"
+    operationId: queryDictionaryByName
+    deprecated: true
+    parameters:
+      - { name: name, in: path, required: true, schema: { type: string }, description: Business code. }
+    responses:
+      "200":
+        description: Dictionary collection.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/DictionaryByNameVO" }
+
+# ------------------------------------------------------- Reference
+queryRefDeprecated:
+  post:
+    tags: [Reference]
+    summary: "[Deprecated] Fuzzy paged reference query"
+    operationId: queryRefDeprecated
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ReferenceVaguaDTO" }
+    responses:
+      "200":
+        description: Paged reference rows.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ReferenceCommonListVO" }
+
+queryRefById:
+  get:
+    tags: [Reference]
+    summary: "[Deprecated] Get reference by id"
+    operationId: queryRefById
+    deprecated: true
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+    responses:
+      "200":
+        description: Reference record (plain POJO).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ReferenceVO" }
+
+queryReferenceByParam:
+  post:
+    tags: [Reference]
+    summary: Query reference by business code + serial
+    operationId: queryReferenceByParam
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ReferenceQueryDTO" }
+    responses:
+      "200":
+        description: Reference collection.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ReferenceListVO" }
+
+getReference:
+  post:
+    tags: [Reference]
+    summary: Fetch public system parameters + login random nonce
+    operationId: getReference
+    security: []
+    responses:
+      "200":
+        description: Parameter set + login random nonce.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/ReferenceRespVO" }
+
+# ------------------------------------------------------- System log
+logLevel:
+  get:
+    tags: [System Log]
+    summary: Query current logback log-level config
+    operationId: getLogLevel
+    responses:
+      "200":
+        description: Logger → level map.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/equipment-base-system.yaml#/LogLevelVO" }
+  put:
+    tags: [System Log]
+    summary: Dynamically change a logger's level (no restart)
+    operationId: setLogLevel
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/equipment-base-system.yaml#/LogLevelUpdateDTO" }
+    responses:
+      "200":
+        description: Change result (only ERROR/WARN/INFO accepted).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }

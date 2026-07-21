@@ -1,0 +1,493 @@
+# File Upload, Sharing & Object Storage paths. Derived from specs/files-upload-share-oss.md.
+
+ftpUpload:
+  put:
+    tags: [File - Upload/Share/OSS]
+    summary: Legacy FTP multipart file upload
+    operationId: ftpUpload
+    security: []
+    parameters:
+      - name: innerName
+        in: path
+        required: true
+        description: Server-side internal storage name/key of the target object.
+        schema: { type: string }
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+                description: The file bytes.
+    responses:
+      "200":
+        description: Envelope-only result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+      "500":
+        description: Multipart failure (errorCode FILE_UPLOAD_FAILED).
+
+terminalUploadApply:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Terminal (device) upload apply
+    operationId: terminalUploadApply
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/TerminalFileUploadApplyDTO" }
+    responses:
+      "200":
+        description: Signed upload target.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadApplyLocalVO" }
+
+terminalUploadFinish:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Terminal (device) upload finish/commit
+    operationId: terminalUploadFinish
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/TerminalFileUploadFinishDTO" }
+    responses:
+      "200":
+        description: Commit result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+queryFileList:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: List files + folders in a directory (paged)
+    operationId: queryFileList
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileListQueryDTO" }
+    responses:
+      "200":
+        description: Files + folders on this page.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileListQueryVO" }
+
+queryFolderList:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: List folders (for move/copy picker)
+    operationId: queryFolderList
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FolderListQueryDTO" }
+    responses:
+      "200":
+        description: Folders.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FolderListQueryVO" }
+
+queryCapacity:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Query cloud-disk capacity
+    operationId: queryCapacity
+    responses:
+      "200":
+        description: Used vs. total capacity.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/CapacityVO" }
+
+deleteFile:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Delete files/folders (to recycle bin)
+    operationId: deleteFile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileDeleteDTO" }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+addFolder:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Create folder
+    operationId: addFolder
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FolderAddDTO" }
+    responses:
+      "200":
+        description: Create result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+moveFile:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Move files/folders
+    operationId: moveFile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileMoveAndCopyDTO" }
+    responses:
+      "200":
+        description: Move result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+copyFile:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Copy files/folders
+    operationId: copyFile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileMoveAndCopyDTO" }
+    responses:
+      "200":
+        description: Copy result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+renameFile:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Rename file/folder
+    operationId: renameFile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileReNameDTO" }
+    responses:
+      "200":
+        description: Rename result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+searchFile:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Search files/folders by name (paged)
+    operationId: searchFile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileListSearchDTO" }
+    responses:
+      "200":
+        description: Matches on this page.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileListSearchVO" }
+
+queryRecycleList:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: List recycle-bin contents (paged)
+    operationId: queryRecycleList
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/RecycleFileListDTO" }
+    responses:
+      "200":
+        description: Recycle-bin items.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/RecycleFileListVO" }
+
+clearRecycle:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Empty recycle bin
+    operationId: clearRecycle
+    responses:
+      "200":
+        description: Clear result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+deleteRecycle:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Permanently delete recycle-bin items
+    operationId: deleteRecycle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/RecycleFileDTO" }
+    responses:
+      "200":
+        description: Permanent-delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+revertRecycle:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Restore recycle-bin items
+    operationId: revertRecycle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/RecycleFileDTO" }
+    responses:
+      "200":
+        description: Restore result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+getDownloadUrl:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Get a file download URL
+    operationId: getDownloadUrl
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileDownloadDTO" }
+    responses:
+      "200":
+        description: Download URL + md5.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileDownloadUrlVO" }
+
+queryFilePath:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Query a file's directory path
+    operationId: queryFilePath
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FilePathQueryDTO" }
+    responses:
+      "200":
+        description: Path + ancestor id chain.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FilePathQueryVO" }
+
+uploadApply:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Web/app upload apply (phase 1)
+    operationId: uploadApply
+    description: "@ResubmitCheck on fileName+directoryId."
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileUploadApplyDTO" }
+    responses:
+      "200":
+        description: Signed upload target (or dedup signal E0310).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadApplyLocalVO" }
+
+uploadFinish:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Web/app upload finish/commit (phase 3)
+    operationId: uploadFinish
+    description: "@ResubmitCheck guarded."
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileUploadFinishDTO" }
+    responses:
+      "200":
+        description: Commit result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+addShareRecord:
+  post:
+    tags: [File - Upload/Share/OSS]
+    summary: Create a share record
+    operationId: addShareRecord
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/ShareRecordDTO" }
+    responses:
+      "200":
+        description: Share record created (share URL produced downstream).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+generateUploadUrl:
+  post:
+    tags: [Object Storage]
+    summary: Mint signed upload URL
+    operationId: generateUploadUrl
+    security: []
+    parameters:
+      - { name: filePath, in: query, required: true, schema: { type: string }, description: Logical storage path/key. }
+      - { name: fileName, in: query, required: true, schema: { type: string } }
+      - { name: fileSize, in: query, required: false, schema: { type: integer, format: int64 }, description: Folded into the signature when present. }
+      - { name: ip, in: query, required: false, schema: { type: string }, description: Client IP. }
+    responses:
+      "200":
+        description: Signed upload URL (valid 30 min).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadApplyLocalVO" }
+
+uploadFile:
+  post:
+    tags: [Object Storage]
+    summary: Upload whole file via signed URL
+    operationId: uploadFile
+    description: Authenticated by HMAC signature, not JWT. Signature mismatch → E1306.
+    security: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file, signature, timestamp, nonce, path]
+            properties:
+              file: { type: string, format: binary, description: File bytes. }
+              signature: { type: string, description: HMAC signature from the signed URL. }
+              timestamp: { type: integer, format: int64, description: Signed timestamp (ms). }
+              nonce: { type: string }
+              path: { type: string, description: Encrypted target path. }
+    responses:
+      "200":
+        description: Stored innerName + server-computed md5.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/UploadFileVO" }
+      "500":
+        description: Upload failure (FILE_UPLOAD_FAILED).
+
+uploadPart:
+  post:
+    tags: [Object Storage]
+    summary: Upload one chunk via signed URL
+    operationId: uploadPart
+    description: Authenticated by HMAC signature, not JWT. Signature mismatch → E1306.
+    security: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file, signature, timestamp, nonce, path, partNumber, totalChunks, uploadId]
+            properties:
+              file: { type: string, format: binary, description: Chunk bytes. }
+              signature: { type: string }
+              timestamp: { type: integer, format: int64 }
+              nonce: { type: string }
+              path: { type: string, description: Encrypted target path. }
+              partNumber: { type: integer, description: 1-based chunk index. }
+              totalChunks: { type: integer }
+              uploadId: { type: string, description: Upload session id. }
+    responses:
+      "200":
+        description: Per-chunk status.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileChunkVO" }
+      "500":
+        description: Upload failure (FILE_UPLOAD_FAILED).
+
+generateDownloadUrl:
+  post:
+    tags: [Object Storage]
+    summary: Mint signed download URL
+    operationId: generateDownloadUrl
+    security: []
+    parameters:
+      - { name: filePath, in: query, required: true, schema: { type: string }, description: Logical storage path/key. }
+      - { name: fileName, in: query, required: true, schema: { type: string } }
+      - { name: pathId, in: query, required: true, schema: { type: string }, description: Path/object identifier echoed on download. }
+      - { name: ip, in: query, required: false, schema: { type: string }, description: Client IP. }
+    responses:
+      "200":
+        description: Signed download descriptor (plain POJO, not an envelope; valid 24 h).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-upload-share-oss.yaml#/FileDownloadApplyVO" }
+
+downloadFile:
+  get:
+    tags: [Object Storage]
+    summary: Stream file via signed URL (Range-capable)
+    operationId: downloadFile
+    description: >-
+      Authenticated by HMAC signature, not JWT. Streams raw bytes (NOT a JSON
+      envelope); supports HTTP Range → 206 Partial Content. Download exceptions
+      surface as HTTP 500 plain text.
+    security: []
+    parameters:
+      - { name: path, in: query, required: true, schema: { type: string }, description: Encrypted file path. }
+      - { name: signature, in: query, required: true, schema: { type: string }, description: HMAC download signature. }
+      - { name: timestamp, in: query, required: true, schema: { type: integer, format: int64 }, description: Signed timestamp (ms). }
+      - { name: nonce, in: query, required: true, schema: { type: string } }
+      - { name: pathId, in: query, required: true, schema: { type: string }, description: Path/object identifier. }
+      - { name: Range, in: header, required: false, schema: { type: string }, description: Optional byte range for partial content. }
+    responses:
+      "200":
+        description: Full file stream.
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      "206":
+        description: Partial content (Range request).
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      "500":
+        description: Download failure (plain text).

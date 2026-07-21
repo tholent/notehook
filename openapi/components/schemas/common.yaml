@@ -1,0 +1,59 @@
+# Shared envelope and generic wrappers.
+# Every response body extends BaseVO (success / errorCode / errorMsg).
+# Derived from specs/README.md ("The response envelope").
+BaseVO:
+  type: object
+  description: >-
+    Base response envelope. Logical failures are returned as HTTP 200 with
+    success=false plus errorCode/errorMsg (see the error-codes catalogue).
+    On success, errorCode/errorMsg are null.
+  required:
+    - success
+  properties:
+    success:
+      type: boolean
+      default: true
+      description: Overall logical result. false on any business/validation failure.
+    errorCode:
+      type: string
+      nullable: true
+      description: Error code when success=false; null on success.
+    errorMsg:
+      type: string
+      nullable: true
+      description: Human-readable error message when success=false; null on success.
+
+CommonVO:
+  type: object
+  description: Generic single-object envelope (BaseVO + voT).
+  allOf:
+    - $ref: "#/BaseVO"
+    - type: object
+      properties:
+        voT:
+          description: The payload object.
+          type: object
+          nullable: true
+
+CommonListVO:
+  type: object
+  description: Generic paged-list envelope (BaseVO + total/size/pages/voList).
+  allOf:
+    - $ref: "#/BaseVO"
+    - type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+          description: Total row count across all pages.
+        size:
+          type: integer
+          description: Number of items on the current page.
+        pages:
+          type: integer
+          description: Total page count.
+        voList:
+          type: array
+          description: Items on the current page.
+          items:
+            type: object

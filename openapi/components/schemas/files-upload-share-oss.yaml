@@ -1,0 +1,277 @@
+# File Upload, Sharing & Object Storage schemas. Derived from specs/files-upload-share-oss.md.
+# Shared VOs (FileUploadApplyLocalVO, UserFileVO, UserFileSearchVO) are reused
+# from files-core.yaml via cross-file $ref.
+
+# ------------------------------------------------------------- Upload DTOs
+TerminalFileUploadApplyDTO:
+  type: object
+  required: [fileSize, fileName, md5]
+  properties:
+    equipmentNo: { type: string, description: Device number. }
+    filePath: { type: string }
+    fileSize: { type: string, description: File size (string-typed). "@NotBlank". }
+    fileName: { type: string, description: File name. "@NotBlank". }
+    md5: { type: string, description: File MD5. "@NotBlank". }
+
+TerminalFileUploadFinishDTO:
+  type: object
+  required: [fileSize, fileName, md5, innerName, modifyTime, uploadTime]
+  properties:
+    equipmentNo: { type: string }
+    filePath: { type: string }
+    fileSize: { type: string, description: File size (string-typed). }
+    fileName: { type: string }
+    md5: { type: string }
+    innerName: { type: string, description: Internal storage name/key. }
+    modifyTime: { type: string, description: File modification time (device). }
+    uploadTime: { type: string, description: File upload time (device). }
+
+FileListQueryDTO:
+  type: object
+  required: [directoryId, order, sequence, pageNo, pageSize]
+  properties:
+    directoryId: { type: integer, format: int64 }
+    order: { type: string, enum: [filename, time, size] }
+    sequence: { type: string, enum: [asc, desc] }
+    pageNo: { type: integer }
+    pageSize: { type: integer }
+
+FolderListQueryDTO:
+  type: object
+  required: [directoryId, idList]
+  properties:
+    directoryId: { type: integer, format: int64 }
+    idList:
+      type: array
+      items: { type: integer, format: int64 }
+      description: Folder ids (to expand/exclude).
+
+FileDeleteDTO:
+  type: object
+  required: [idList, directoryId]
+  properties:
+    equipmentNo: { type: string }
+    idList:
+      type: array
+      items: { type: integer, format: int64 }
+      description: Ids to delete. "@NotEmpty" (File ID list cannot be empty).
+    directoryId: { type: integer, format: int64, description: Parent directory id. "@NotNull". }
+
+FolderAddDTO:
+  type: object
+  required: [fileName, directoryId]
+  properties:
+    fileName: { type: string, description: Folder name. }
+    directoryId: { type: integer, format: int64 }
+
+FileMoveAndCopyDTO:
+  type: object
+  required: [idList, directoryId, goDirectoryId]
+  properties:
+    idList:
+      type: array
+      items: { type: integer, format: int64 }
+      description: Ids to move/copy.
+    directoryId: { type: integer, format: int64, description: Source parent directory id. }
+    goDirectoryId: { type: integer, format: int64, description: Target parent directory id. }
+
+FileReNameDTO:
+  type: object
+  required: [id, newName]
+  properties:
+    id: { type: integer, format: int64 }
+    newName: { type: string }
+
+FileListSearchDTO:
+  type: object
+  required: [fileName, order, sequence, pageNo, pageSize]
+  properties:
+    fileName: { type: string, description: Name substring to search. }
+    order: { type: string, enum: [filename, time, size] }
+    sequence: { type: string, enum: [asc, desc] }
+    pageNo: { type: integer }
+    pageSize: { type: integer }
+
+RecycleFileListDTO:
+  type: object
+  required: [order, sequence, pageNo, pageSize]
+  properties:
+    order: { type: string }
+    sequence: { type: string }
+    pageNo: { type: integer }
+    pageSize: { type: integer }
+
+RecycleFileDTO:
+  type: object
+  required: [idList]
+  properties:
+    idList:
+      type: array
+      items: { type: integer, format: int64 }
+      description: Recycle-bin item ids. "@NotEmpty".
+
+FileDownloadDTO:
+  type: object
+  required: [id, type]
+  properties:
+    id: { type: integer, format: int64 }
+    type: { type: string, enum: ["0", "1"], description: "0=download, 1=share." }
+
+FilePathQueryDTO:
+  type: object
+  required: [id]
+  properties:
+    id: { type: integer, format: int64 }
+
+FileUploadApplyDTO:
+  type: object
+  required: [directoryId, size, fileName, md5]
+  properties:
+    directoryId: { type: integer, format: int64 }
+    size: { type: integer, format: int64, description: File size (bytes). }
+    fileName: { type: string }
+    md5: { type: string, description: File MD5 (dedup key). }
+
+FileUploadFinishDTO:
+  type: object
+  required: [directoryId, fileSize, fileName, md5, innerName]
+  properties:
+    type: { type: string, enum: ["1", "2"], description: "Source: 1=app, 2=cloud disk." }
+    directoryId: { type: integer, format: int64 }
+    fileSize: { type: integer, format: int64, description: File size (bytes). }
+    fileName: { type: string }
+    md5: { type: string }
+    innerName: { type: string, description: Internal storage name/key from apply. }
+
+ShareRecordDTO:
+  type: object
+  required: [fileId, shareWay]
+  properties:
+    fileId: { type: string, description: Id of the file to share. }
+    shareWay: { type: string, enum: ["0", "1"], description: "Export format: 0=PDF, 1=PNG." }
+
+OssLocalDTO:
+  type: object
+  description: Local-OSS helper DTO (not directly bound by these endpoints).
+  required: [fileName, innerName]
+  properties:
+    fileName: { type: string }
+    innerName: { type: string }
+
+OssDTO:
+  type: object
+  description: Generic OSS object reference (not bound by these endpoints).
+  required: [bucketName, key]
+  properties:
+    bucketName: { type: string }
+    key: { type: string, description: Unique object key. }
+
+# ------------------------------------------------------------- VOs
+UploadFileVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        innerName: { type: string, description: Stored internal name/key. }
+        md5: { type: string, description: Server-computed MD5 of the stored file. }
+
+FileChunkVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        uploadId: { type: string }
+        partNumber: { type: integer }
+        totalChunks: { type: integer }
+        chunkMd5: { type: string }
+        status: { type: string, description: Chunk status (e.g. SUCCESS). }
+
+FileDownloadApplyVO:
+  type: object
+  description: Plain POJO (NOT a BaseVO) returned by generate/download/url.
+  properties:
+    url: { type: string, description: Signed download URL. }
+    signature: { type: string, description: HMAC download signature. }
+    timestamp: { type: integer, format: int64, description: Signature timestamp (ms). }
+    nonce: { type: string }
+    pathId: { type: string, description: Path/object identifier. }
+
+CapacityVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        usedCapacity: { type: integer, format: int64, description: Used bytes. }
+        totalCapacity: { type: integer, format: int64, description: Total bytes. }
+
+FileDownloadUrlVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        url: { type: string, description: Download URL. }
+        md5: { type: string }
+
+FilePathQueryVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        path: { type: string, description: Human-readable folder path. }
+        idPath: { type: string, description: Ancestor id chain. }
+
+FileListQueryVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        total: { type: integer, format: int64, description: Total item count. }
+        userFileVOList:
+          type: array
+          items: { $ref: "files-core.yaml#/UserFileVO" }
+
+FolderVO:
+  type: object
+  properties:
+    id: { type: string }
+    directoryId: { type: string }
+    fileName: { type: string }
+    empty: { type: string, enum: ["Y", "N"], description: "Y=empty, N=not empty." }
+
+FolderListQueryVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        folderVOList:
+          type: array
+          items: { $ref: "#/FolderVO" }
+
+FileListSearchVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        total: { type: integer, format: int64 }
+        userFileSearchVOList:
+          type: array
+          items: { $ref: "files-core.yaml#/UserFileSearchVO" }
+
+RecycleFileVO:
+  type: object
+  properties:
+    fileId: { type: string }
+    isFolder: { type: string, enum: ["Y", "N"] }
+    fileName: { type: string }
+    size: { type: integer, format: int64 }
+    updateTime: { type: string, description: Last updated (deletion time). }
+
+RecycleFileListVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        total: { type: integer, format: int64 }
+        recycleFileVOList:
+          type: array
+          items: { $ref: "#/RecycleFileVO" }

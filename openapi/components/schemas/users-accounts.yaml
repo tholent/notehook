@@ -1,0 +1,238 @@
+# User & Account Management schemas. Derived from specs/users-accounts.md.
+
+# ------------------------------------------------------------- DTOs
+UserCheckDTO:
+  type: object
+  description: No validation annotations. At least one identifier expected in practice.
+  properties:
+    countryCode: { type: string }
+    telephone: { type: string }
+    email: { type: string }
+    userName: { type: string, description: Nickname. }
+    domain: { type: string, description: Domain (server/region hint). }
+
+UserQueryDTO:
+  type: object
+  description: Terminal-compatible profile lookup; token/equipmentNo may be body-carried.
+  properties:
+    countryCode: { type: string }
+    value: { type: string, description: Lookup value (phone number or email). }
+    token: { type: string, description: "Access token (body-carried, terminal compatibility)." }
+    equipmentNo: { type: string, description: Device identifier (body-carried). }
+
+UserUpdateDTO:
+  type: object
+  properties:
+    sex: { type: string }
+    birthday: { type: string }
+    personalSign: { type: string }
+    hobby: { type: string }
+    address: { type: string }
+    job: { type: string }
+    education: { type: string }
+
+UpdateUserNameDTO:
+  type: object
+  required: [userName]
+  properties:
+    userName:
+      type: string
+      description: New nickname. "@NotBlank" (昵称不能为空).
+
+UserDTO:
+  type: object
+  required: [pageNo, pageSize]
+  properties:
+    userName: { type: string, description: Nickname filter (LIKE). }
+    telephone: { type: string }
+    email: { type: string, description: Email filter (LIKE). }
+    isNormal:
+      type: string
+      description: "Status filter: Y normal / N migrated / F frozen / A admin."
+    createTimeStart: { type: string, description: Registration start date (yyyy-MM-dd). }
+    createTimeEnd: { type: string, description: Registration end date (yyyy-MM-dd). }
+    fileServer: { type: string }
+    pageNo: { type: string, description: Page number (1-based). "@NotBlank". }
+    pageSize: { type: string, description: Items per page. "@NotBlank". }
+
+FreezeOrUnfreezeUserDTO:
+  type: object
+  required: [userId, flag]
+  properties:
+    userId: { type: string, description: Target user id. "@NotBlank". }
+    flag:
+      type: string
+      enum: ["Y", "N"]
+      description: "Y = freeze, N = unfreeze. @NotBlank."
+
+UserInfoDTO:
+  type: object
+  properties:
+    countryCode: { type: string }
+    telephone: { type: string }
+    email: { type: string }
+
+RegistrationRestrictionDTO:
+  type: object
+  required: [enabled]
+  properties:
+    enabled:
+      type: boolean
+      description: true restricts new registrations, false allows them. "@NotNull".
+
+UpdateEmailDTO:
+  type: object
+  required: [email]
+  properties:
+    email:
+      type: string
+      description: New email address. "@NotBlank" (邮箱不能为空).
+
+UserRegisterDTO:
+  type: object
+  required: [email, password]
+  properties:
+    email: { type: string, description: Registration email (also initial username). "@NotBlank". }
+    password: { type: string, description: Account password. "@NotBlank". }
+    userName: { type: string, description: Optional display nickname. }
+
+EmailServerDTO:
+  type: object
+  required: [smtpServer, port, username, password, encryption]
+  properties:
+    smtpServer: { type: string, description: SMTP host. "@NotNull". }
+    port: { type: string, description: SMTP port. "@NotNull". }
+    username: { type: string, description: SMTP account / from-address. "@NotNull". }
+    password: { type: string, description: SMTP password (RSA-encrypted with the public key). "@NotNull". }
+    encryption: { type: string, description: "Transport encryption, e.g. SSL / TLS. @NotNull." }
+    testEmail: { type: string, description: Test-recipient email address. }
+    language: { type: string, description: Language for test/template email content. }
+
+# ------------------------------------------------------------- VOs
+UserCheckVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        dms: { type: string, description: Server/region marker (DMS routing hint). }
+        userId: { type: integer, format: int64, description: "Matched user id, when found." }
+        uniqueMachineId: { type: string, description: "Bound device's unique machine id, when applicable." }
+
+UserInfo:
+  type: object
+  description: Nested profile object inside UserQueryVO.
+  properties:
+    address: { type: string }
+    avatarsUrl: { type: string }
+    birthday: { type: string }
+    education: { type: string }
+    email: { type: string }
+    hobby: { type: string }
+    job: { type: string }
+    personalSign: { type: string }
+    phone: { type: string, description: "Phone number (field is `phone`, not `telephone`)." }
+    countryCode: { type: string }
+    sex: { type: string }
+    totalCapacity: { type: string }
+    userName: { type: string }
+    fileServer: { type: string, description: "0 ufile, 1 aws." }
+    userId: { type: integer, format: int64 }
+
+UserQueryByIdVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        address: { type: string }
+        avatarsUrl: { type: string }
+        birthday: { type: string }
+        education: { type: string }
+        email: { type: string }
+        hobby: { type: string }
+        job: { type: string }
+        personalSign: { type: string }
+        telephone: { type: string }
+        countryCode: { type: string }
+        sex: { type: string }
+        totalCapacity: { type: string }
+        userName: { type: string }
+        fileServer: { type: string, description: "0 = ufile, 1 = aws." }
+        userId: { type: integer, format: int64 }
+        isNormal:
+          type: string
+          description: "Account status: Y normal, N migrated, F frozen, A admin."
+
+UserQueryVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        user: { $ref: "#/UserInfo" }
+        isUser: { type: boolean, description: Whether the looked-up value is an existing user. }
+        equipmentNo: { type: string }
+
+UserInfoVo:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        userId: { type: integer, format: int64, description: Matched user id (only the id is returned). }
+
+UserVO:
+  type: object
+  description: List element (not a BaseVO). Some fields may be localised display strings for query/all.
+  properties:
+    userId: { type: string }
+    userName: { type: string }
+    countryCode: { type: string }
+    telephone: { type: string }
+    email: { type: string }
+    wechatNo: { type: string, description: WeChat credential. }
+    sex: { type: string }
+    birthday: { type: string }
+    personalSign: { type: string }
+    hobby: { type: string }
+    education: { type: string }
+    job: { type: string }
+    address: { type: string }
+    createTime: { type: string, description: Registration time (Date). }
+    isNormal: { type: string, description: "Y normal / N frozen (localised by query/all mapper)." }
+    fileServer: { type: string }
+
+UserListVO:
+  description: CommonListVO<UserVO>.
+  allOf:
+    - $ref: "common.yaml#/CommonListVO"
+    - type: object
+      properties:
+        voList:
+          type: array
+          items: { $ref: "#/UserVO" }
+
+RegistrationRestrictionVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        enabled: { type: boolean, description: Whether registration is currently restricted. }
+
+EmailServerVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        smtpServer: { type: string }
+        port: { type: string }
+        username: { type: string }
+        password: { type: string, description: SMTP password (likely encrypted / masked). }
+        encryption: { type: string, description: "SSL/TLS." }
+        flag: { type: string, enum: ["Y", "N"], description: "Y enabled / N disabled." }
+        testEmail: { type: string }
+        adminEmail: { type: string, description: Administrator email (from separate config; no table column). }
+
+EmailPublicKeyVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        publicKey: { type: string, description: RSA public key for encrypting sensitive fields. }

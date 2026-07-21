@@ -1,0 +1,404 @@
+# Authentication & Account Security schemas.
+# Derived from specs/authentication.md. Response VOs extend the shared BaseVO
+# envelope (common.yaml). Behavioral detail is documented in the source spec;
+# method bodies were stripped (ClassFinal), so shapes are authoritative and
+# semantics are best-effort.
+
+# ---------------------------------------------------------------- Login
+LoginDTO:
+  type: object
+  required: [password, account, equipment, loginMethod]
+  properties:
+    password:
+      type: string
+      description: Password, pre-hashed by the client (not plaintext). "@NotBlank".
+    countryCode:
+      type: string
+      description: Country calling code.
+    account:
+      type: string
+      description: Account (phone / email / WeChat, per loginMethod). "@NotBlank".
+    browser:
+      type: string
+      description: Browser name.
+    equipment:
+      type: integer
+      description: "Client device: 1 web cloud disk; 2 APP; 3 terminal; 4 user platform. @NotNull."
+      enum: [1, 2, 3, 4]
+    loginMethod:
+      type: string
+      description: "Login method: 1 phone; 2 email; 3 WeChat. @NotBlank."
+      enum: ["1", "2", "3"]
+    language:
+      type: string
+    equipmentNo:
+      type: string
+      description: Device serial (required for terminal login).
+    timestamp:
+      type: integer
+      format: int64
+      description: Timestamp; pairs with the random code for hash salting.
+
+LoginVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        token:
+          type: string
+          description: Session login token (JWT). Empty when mfaRequired=true.
+        counts:
+          type: string
+          description: Number of failed login attempts.
+        userName:
+          type: string
+          description: User nickname (terminal).
+        avatarsUrl:
+          type: string
+          description: Avatar URL (terminal).
+        lastUpdateTime:
+          type: string
+          description: Modification time (terminal), format "yyyy-MM-dd HH:mm:ss".
+        isBind:
+          type: string
+          enum: ["Y", "N"]
+          description: Whether a device is bound (terminal).
+        isBindEquipment:
+          type: string
+          enum: ["Y", "N"]
+          description: Terminal-only re-bind flag after cancellation without re-init.
+        soldOutCount:
+          type: integer
+          description: Deregistration/cancellation count (terminal only).
+        mfaRequired:
+          type: boolean
+          description: true = MFA second factor required; then call login/mfa/verify.
+        mfaToken:
+          type: string
+          description: MFA temporary token when mfaRequired=true; valid 5 minutes.
+
+MfaLoginVerifyDTO:
+  type: object
+  required: [mfaToken, code, equipment]
+  properties:
+    mfaToken:
+      type: string
+      description: The mfaToken returned by the first login step. "@NotBlank".
+    code:
+      type: string
+      description: TOTP 6-digit code or a recovery code. "@NotBlank".
+    type:
+      type: string
+      enum: [TOTP, RECOVERY]
+      default: TOTP
+      description: Code type; default TOTP.
+    equipment:
+      type: integer
+      enum: [1, 4]
+      description: "Client device: 1 web cloud disk; 4 user platform. @NotNull."
+
+SmsLoginDTO:
+  type: object
+  required: [email, equipment, validCode, validCodeKey]
+  properties:
+    email:
+      type: string
+      description: Email address. "@NotBlank".
+    browser:
+      type: string
+    equipment:
+      type: integer
+      enum: [1, 2, 3, 4]
+      description: "1 web cloud disk; 2 APP; 3 terminal; 4 user platform. @NotNull."
+    validCode:
+      type: string
+      description: The verification code. "@NotBlank".
+    validCodeKey:
+      type: string
+      description: Key returned by the send-code endpoint identifying the stored code. "@NotBlank".
+    devices:
+      type: string
+      description: "Uppercase OS name for desktop/mobile apps: WINDOWS, MACOS, LINUX, ANDROID, IOS."
+
+SmsLoginVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        token:
+          type: string
+          description: Session login token.
+
+# ---------------------------------------------------------------- Records / token
+LoginRecordDTO:
+  type: object
+  required: [pageNo, pageSize]
+  properties:
+    telephone:
+      type: string
+    email:
+      type: string
+    loginMethod:
+      type: string
+      description: "Filter: 1 phone; 2 email; 3 WeChat."
+    equipment:
+      type: string
+      description: "Filter: 1 web cloud disk; 2 APP; 3 terminal; 4 user platform."
+    createTimeStart:
+      type: string
+      description: Login start date filter (>= yyyy-MM-dd).
+    createTimeEnd:
+      type: string
+      description: Login end date filter (<= yyyy-MM-dd).
+    pageNo:
+      type: string
+      description: Page number. "@NotBlank".
+    pageSize:
+      type: string
+      description: Items per page. "@NotBlank".
+
+LoginRecordVO:
+  type: object
+  properties:
+    userId: { type: string }
+    userName: { type: string }
+    createTime: { type: string, description: Login time (Date). }
+    telephone: { type: string }
+    email: { type: string }
+    wechatNo: { type: string }
+    browser: { type: string }
+    equipment:
+      type: string
+      description: >-
+        Device label. Mapper localises this to Chinese strings
+        (网页云盘/手机APP/终端设备/用户平台), so the emitted value may be a label
+        rather than a numeric code.
+    ip: { type: string }
+    loginMethod:
+      type: string
+      description: "Login method (may be localised to 手机/邮箱/微信)."
+
+LoginRecordListVO:
+  description: CommonListVO<LoginRecordVO>.
+  allOf:
+    - $ref: "common.yaml#/CommonListVO"
+    - type: object
+      properties:
+        voList:
+          type: array
+          items:
+            $ref: "#/LoginRecordVO"
+
+QueryTokenVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        token:
+          type: string
+          description: Login token (current or refreshed).
+
+RandomCodeDTO:
+  type: object
+  required: [account]
+  properties:
+    countryCode:
+      type: string
+    account:
+      type: string
+      description: Account. "@NotBlank".
+
+RandomCodeVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        randomCode:
+          type: string
+          description: Random code (salt for the password hash).
+        timestamp:
+          type: integer
+          format: int64
+          description: Timestamp bound to the random code.
+
+# ---------------------------------------------------------------- MFA
+MfaSetupVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        secret:
+          type: string
+          description: Base32 secret for manual entry into an authenticator app.
+        otpauthUrl:
+          type: string
+          description: Standard otpauth:// provisioning URL.
+        qrCodeBase64:
+          type: string
+          description: QR-code PNG as data:image/png;base64,...
+
+MfaEnableDTO:
+  type: object
+  required: [code]
+  properties:
+    code:
+      type: string
+      description: The 6-digit code from the authenticator app. "@NotBlank".
+
+MfaEnableVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        recoveryCodes:
+          type: array
+          items: { type: string }
+          description: One-time recovery codes (returned only on this call).
+
+MfaDisableDTO:
+  type: object
+  required: [code]
+  properties:
+    code:
+      type: string
+      description: TOTP 6-digit code or a recovery code. "@NotBlank".
+    type:
+      type: string
+      enum: [TOTP, RECOVERY]
+      default: TOTP
+
+MfaStatusVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Whether MFA is enabled for the user.
+        recoveryCodesRemaining:
+          type: integer
+          description: Count of unused recovery codes remaining.
+
+# ---------------------------------------------------------------- Verification codes
+EmailDTO:
+  type: object
+  required: [email]
+  properties:
+    email:
+      type: string
+      description: Target email address. "@NotNull".
+    language:
+      type: string
+      description: Language (selects the email template locale).
+
+EmailVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        validCodeKey:
+          type: string
+          description: Key under which the sent code is stored; echoed back on verify/login.
+
+ValidCodeDTO:
+  type: object
+  required: [validCodeKey, validCode]
+  properties:
+    validCodeKey:
+      type: string
+      description: Key returned by the send-code endpoint. "@NotBlank".
+    validCode:
+      type: string
+      description: The code the user entered. "@NotBlank".
+
+# ---------------------------------------------------------------- Password / reset
+PasswordResetCodeDTO:
+  type: object
+  required: [equipmentNo, language, code]
+  properties:
+    equipmentNo:
+      type: string
+      description: Device serial number. "@NotBlank".
+    language:
+      type: string
+      enum: ["1", "2"]
+      description: "Language: 1=CN; 2=EN. @NotBlank."
+    code:
+      type: string
+      description: Encrypted verification code. "@NotBlank".
+    type:
+      type: string
+      enum: ["1", "2"]
+      description: "Password type: 1=lock-screen password; 2=file protection."
+
+PasswordResetCodeVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        telephone: { type: string, description: Phone number the code was sent to. }
+        email: { type: string, description: Email the code was sent to. }
+        equipmentNo: { type: string }
+        time:
+          type: integer
+          description: Timeout / validity window, in seconds.
+
+RetrievePasswordDTO:
+  type: object
+  required: [password]
+  description: At least one of telephone/email is required (handler-enforced, surfaces as E0117).
+  properties:
+    telephone: { type: string }
+    email: { type: string }
+    countryCode:
+      type: string
+      description: Country code (must be present iff phone is present).
+    password:
+      type: string
+      description: New password (pre-hashed). "@NotBlank".
+    version:
+      type: string
+      description: Version named by date, e.g. 202305.
+
+UpdatePasswordDTO:
+  type: object
+  required: [password]
+  properties:
+    password:
+      type: string
+      description: New password (pre-hashed). "@NotBlank".
+    version:
+      type: string
+      description: Version named by date, e.g. 202305.
+
+SensitiveOperDTO:
+  type: object
+  required: [pageNo, pageSize, Language]
+  properties:
+    pageNo:
+      type: string
+      description: Page number. "@NotBlank".
+    pageSize:
+      type: string
+      description: Items per page. "@NotBlank".
+    Language:
+      type: string
+      description: Language. Note the JSON key is capitalised "Language". "@NotBlank".
+
+SensitiveOperVO:
+  type: object
+  properties:
+    ip: { type: string, description: IP address of the operation. }
+    operateRecord: { type: string, description: Operation description/record. }
+    createTime: { type: string, description: Operation time (Date). }
+
+SensitiveOperListVO:
+  description: CommonListVO<SensitiveOperVO>.
+  allOf:
+    - $ref: "common.yaml#/CommonListVO"
+    - type: object
+      properties:
+        voList:
+          type: array
+          items:
+            $ref: "#/SensitiveOperVO"

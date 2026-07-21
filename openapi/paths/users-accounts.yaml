@@ -1,0 +1,305 @@
+# User & Account Management paths. Derived from specs/users-accounts.md.
+
+checkExists:
+  post:
+    tags: [User]
+    summary: Check whether a user exists (by phone/email/nickname)
+    operationId: checkExists
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserCheckDTO" }
+    responses:
+      "200":
+        description: Existence conveyed via success + error code (e.g. E0109 when absent).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+checkExistsServer:
+  post:
+    tags: [User]
+    summary: Check whether a user exists, disambiguating cross-server accounts
+    operationId: checkExistsServer
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserCheckDTO" }
+    responses:
+      "200":
+        description: Existence + server-routing hints (dms / userId / uniqueMachineId).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/UserCheckVO" }
+
+queryUserById:
+  post:
+    tags: [User]
+    summary: Query the current user's profile by JWT identity
+    operationId: queryUserById
+    responses:
+      "200":
+        description: Current user's profile.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/UserQueryByIdVO" }
+
+queryUserInfo:
+  post:
+    tags: [User]
+    summary: Query user profile (terminal-compatible variant)
+    operationId: queryUserInfo
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserQueryDTO" }
+    responses:
+      "200":
+        description: Profile + isUser flag.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/UserQueryVO" }
+
+updateUser:
+  post:
+    tags: [User]
+    summary: Update the current user's basic profile
+    operationId: updateUser
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserUpdateDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+updateUserName:
+  post:
+    tags: [User]
+    summary: Update the current user's nickname
+    operationId: updateUserName
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UpdateUserNameDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+queryAllUsers:
+  post:
+    tags: [User]
+    summary: List users by filter (paged) — admin
+    operationId: queryAllUsers
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserDTO" }
+    responses:
+      "200":
+        description: Paged users. sex/isNormal may be localised display strings.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/UserListVO" }
+
+freezeUser:
+  put:
+    tags: [User]
+    summary: Freeze or unfreeze a user — admin
+    operationId: freezeUser
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/FreezeOrUnfreezeUserDTO" }
+    responses:
+      "200":
+        description: Freeze/unfreeze result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+queryOneUser:
+  post:
+    tags: [User]
+    summary: Query a single user by phone/email
+    operationId: queryOneUser
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserInfoDTO" }
+    responses:
+      "200":
+        description: Matched user id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/UserInfoVo" }
+
+queryUserByPathId:
+  get:
+    tags: [User]
+    summary: Query user profile by id (internal)
+    operationId: queryUserByPathId
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: Target user id.
+        schema: { type: integer, format: int64 }
+    responses:
+      "200":
+        description: User profile.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/UserQueryByIdVO" }
+
+registrationRestriction:
+  put:
+    tags: [User]
+    summary: Enable/disable global registration restriction — admin
+    operationId: setRegistrationRestriction
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/RegistrationRestrictionDTO" }
+    responses:
+      "200":
+        description: Result (E0122 if not admin).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+  get:
+    tags: [User]
+    summary: Query global registration-restriction state — admin
+    operationId: getRegistrationRestriction
+    responses:
+      "200":
+        description: Current restriction state (E0123 if not admin).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/RegistrationRestrictionVO" }
+
+updateEmail:
+  put:
+    tags: [Account]
+    summary: Change the current user's email
+    operationId: updateEmail
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UpdateEmailDTO" }
+    responses:
+      "200":
+        description: Change result (may also reset derived username).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+userRegister:
+  post:
+    tags: [Account]
+    summary: Register a new account
+    operationId: userRegister
+    description: >-
+      Idempotency-guarded via @ResubmitCheck keyed on email; duplicate concurrent
+      submissions are rejected as a resubmit ("409").
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/UserRegisterDTO" }
+    responses:
+      "200":
+        description: Registration result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+accountClear:
+  post:
+    tags: [Account]
+    summary: Cancel (close) the current account
+    operationId: accountClear
+    responses:
+      "200":
+        description: Cancellation result (account archived to tombstone table).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+saveEmailConfig:
+  post:
+    tags: [Email Server]
+    summary: Save SMTP email-server configuration — admin
+    operationId: saveEmailConfig
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/EmailServerDTO" }
+    responses:
+      "200":
+        description: Save result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+testEmailSettings:
+  post:
+    tags: [Email Server]
+    summary: Send a test email with the given config — admin
+    operationId: testEmailSettings
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/users-accounts.yaml#/EmailServerDTO" }
+    responses:
+      "200":
+        description: Test-send result (does not persist config).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+queryEmailServer:
+  get:
+    tags: [Email Server]
+    summary: Retrieve the active email-server configuration — admin
+    operationId: queryEmailServer
+    responses:
+      "200":
+        description: Active config (envelope-only with empty fields when none active).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/EmailServerVO" }
+
+queryEmailPublicKey:
+  get:
+    tags: [Email Server]
+    summary: Retrieve the RSA public key used to encrypt sensitive input
+    operationId: queryEmailPublicKey
+    security: []
+    responses:
+      "200":
+        description: RSA public key.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/users-accounts.yaml#/EmailPublicKeyVO" }

@@ -1,0 +1,335 @@
+# Authentication & Account Security paths (operation-keyed; referenced from openapi.yaml).
+# Derived from specs/authentication.md.
+
+loginNew:
+  post:
+    tags: [Authentication]
+    summary: Account login (new) — web / APP / user platform
+    operationId: loginNew
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/LoginDTO" }
+    responses:
+      "200":
+        description: >-
+          Login result. When MFA is required (equipment 1 & 4), token is empty
+          and mfaRequired=true with a short-lived mfaToken.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/LoginVO" }
+
+mfaLoginVerify:
+  post:
+    tags: [Authentication]
+    summary: MFA second-factor verification (equipment 1 & 4 only)
+    operationId: mfaLoginVerify
+    description: Authorised by the short-lived mfaToken from the first login step (not the session token).
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/MfaLoginVerifyDTO" }
+    responses:
+      "200":
+        description: On success, token is populated and mfaRequired is false/absent.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/LoginVO" }
+
+loginEquipment:
+  post:
+    tags: [Authentication]
+    summary: Device / terminal login (equipment=3, never MFA)
+    operationId: loginEquipment
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/LoginDTO" }
+    responses:
+      "200":
+        description: Login result (terminal-specific fields are the primary payload).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/LoginVO" }
+
+smsLogin:
+  post:
+    tags: [Authentication]
+    summary: SMS / email verification-code login
+    operationId: smsLogin
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/SmsLoginDTO" }
+    responses:
+      "200":
+        description: Login result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/SmsLoginVO" }
+
+logout:
+  post:
+    tags: [Authentication]
+    summary: Log out and invalidate the session token
+    operationId: logout
+    responses:
+      "200":
+        description: Logout result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+queryLoginRecord:
+  post:
+    tags: [Authentication]
+    summary: Query all login records by criteria (paged)
+    operationId: queryLoginRecord
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/LoginRecordDTO" }
+    responses:
+      "200":
+        description: Paged login records.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/LoginRecordListVO" }
+
+queryToken:
+  post:
+    tags: [Authentication]
+    summary: Query / re-issue the current token
+    operationId: queryToken
+    responses:
+      "200":
+        description: Current or refreshed token.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/QueryTokenVO" }
+
+randomCode:
+  post:
+    tags: [Authentication]
+    summary: Get a per-account random code (password-hash salt)
+    operationId: randomCode
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/RandomCodeDTO" }
+    responses:
+      "200":
+        description: Random code + timestamp.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/RandomCodeVO" }
+
+mfaSetup:
+  post:
+    tags: [Authentication]
+    summary: MFA enrol — generate secret + QR code
+    operationId: mfaSetup
+    responses:
+      "200":
+        description: Pending MFA secret, otpauth URL and QR code.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/MfaSetupVO" }
+
+mfaEnable:
+  post:
+    tags: [Authentication]
+    summary: MFA enrol — confirm/enable with an authenticator code
+    operationId: mfaEnable
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/MfaEnableDTO" }
+    responses:
+      "200":
+        description: One-time recovery codes (returned only on this call).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/MfaEnableVO" }
+
+mfaDisable:
+  post:
+    tags: [Authentication]
+    summary: Disable MFA (requires second factor)
+    operationId: mfaDisable
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/MfaDisableDTO" }
+    responses:
+      "200":
+        description: Disable result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+mfaRecoveryRegenerate:
+  post:
+    tags: [Authentication]
+    summary: Regenerate recovery codes (requires TOTP)
+    operationId: mfaRecoveryRegenerate
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/MfaEnableDTO" }
+    responses:
+      "200":
+        description: Freshly generated one-time recovery codes.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/MfaEnableVO" }
+
+mfaStatus:
+  get:
+    tags: [Authentication]
+    summary: Query current MFA status
+    operationId: mfaStatus
+    responses:
+      "200":
+        description: MFA status.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/MfaStatusVO" }
+
+sendEmailValidCode:
+  post:
+    tags: [Authentication]
+    summary: Send an email verification code
+    operationId: sendEmailValidCode
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/EmailDTO" }
+    responses:
+      "200":
+        description: validCodeKey for the sent code.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/EmailVO" }
+
+checkValidCode:
+  post:
+    tags: [Authentication]
+    summary: Verify an SMS/email verification code only
+    operationId: checkValidCode
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/ValidCodeDTO" }
+    responses:
+      "200":
+        description: Verification result (does not log in or mutate state).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+getPicCode:
+  get:
+    tags: [Authentication]
+    summary: Get an image (graphic) captcha
+    operationId: getPicCode
+    description: >-
+      Writes a PNG image stream directly to the response body. Not a BaseVO
+      envelope.
+    security: []
+    responses:
+      "200":
+        description: PNG captcha image stream.
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+
+sendPasswordUnlockCode:
+  post:
+    tags: [Authentication]
+    summary: Send a device password-unlock code
+    operationId: sendPasswordUnlockCode
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/PasswordResetCodeDTO" }
+    responses:
+      "200":
+        description: Delivery target + validity window.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/PasswordResetCodeVO" }
+
+retrievePassword:
+  post:
+    tags: [Authentication]
+    summary: Retrieve / reset password (forgot-password flow)
+    operationId: retrievePassword
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/RetrievePasswordDTO" }
+    responses:
+      "200":
+        description: Reset result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+updatePassword:
+  put:
+    tags: [Authentication]
+    summary: Change password (logged-in user)
+    operationId: updatePassword
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/UpdatePasswordDTO" }
+    responses:
+      "200":
+        description: Change result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+querySensitiveRecord:
+  post:
+    tags: [Authentication]
+    summary: Query sensitive-operation audit records (paged)
+    operationId: querySensitiveRecord
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/authentication.yaml#/SensitiveOperDTO" }
+    responses:
+      "200":
+        description: Paged sensitive-operation records.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/authentication.yaml#/SensitiveOperListVO" }

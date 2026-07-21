@@ -1,0 +1,375 @@
+# File & Sync (core / NAS / dropbox) paths. Derived from specs/files-core.md.
+
+addFolderFileDeprecated:
+  post:
+    tags: [File - Core]
+    summary: "[Deprecated] Create folder/file (desktop app only)"
+    operationId: addFolderFileDeprecated
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FolderFileAddDTO" }
+    responses:
+      "200":
+        description: Created folder/file metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FolderFileAddVO" }
+
+syncStart:
+  post:
+    tags: [File - Core]
+    summary: Begin sync session (NAS)
+    operationId: syncStart
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/SynchronousStartLocalDTO" }
+    responses:
+      "200":
+        description: Sync strategy (synType incremental vs full re-seed).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/SynchronousStartLocalVO" }
+
+syncEnd:
+  post:
+    tags: [File - Core]
+    summary: End sync session (NAS)
+    operationId: syncEnd
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/SynchronousEndLocalDTO" }
+    responses:
+      "200":
+        description: Session closed.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/SynchronousEndLocalVO" }
+
+createFolderV2:
+  post:
+    tags: [File - Core]
+    summary: Create folder (NAS)
+    operationId: createFolderV2
+    description: "@ResubmitCheck on (path, equipmentNo) when path != null → 409 on duplicate."
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/CreateFolderLocalDTO" }
+    responses:
+      "200":
+        description: Created folder metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/CreateFolderLocalVO" }
+
+listFolder:
+  post:
+    tags: [File - Core]
+    summary: List folder by path (dropbox)
+    operationId: listFolder
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/ListFolderV2DTO" }
+    responses:
+      "200":
+        description: Folder contents.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/ListFolderLocalVO" }
+
+listFolderV3:
+  post:
+    tags: [File - Core]
+    summary: List folder by id (NAS)
+    operationId: listFolderV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/ListFolderLocalDTO" }
+    responses:
+      "200":
+        description: Folder contents.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/ListFolderLocalVO" }
+
+deleteFolderV3:
+  post:
+    tags: [File - Core]
+    summary: Delete file/folder → recycle bin (NAS)
+    operationId: deleteFolderV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/DeleteFolderLocalDTO" }
+    responses:
+      "200":
+        description: Deleted item metadata (soft delete to recycle bin).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/DeleteFolderLocalVO" }
+
+uploadApplyV3:
+  post:
+    tags: [File - Core]
+    summary: Request presigned upload URL (NAS)
+    operationId: uploadApplyV3
+    description: "@ResubmitCheck on (fileName, equipmentNo, path) when fileName != null."
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadApplyLocalDTO" }
+    responses:
+      "200":
+        description: Presigned upload credentials + URLs.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadApplyLocalVO" }
+
+uploadFinishV2:
+  post:
+    tags: [File - Core]
+    summary: Commit uploaded file (NAS)
+    operationId: uploadFinishV2
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadFinishLocalDTO" }
+    responses:
+      "200":
+        description: Committed file metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileUploadFinishLocalVO" }
+
+downloadV3:
+  post:
+    tags: [File - Core]
+    summary: Get download URL by id (NAS)
+    operationId: downloadV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileDownloadLocalDTO" }
+    responses:
+      "200":
+        description: Download URL + metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileDownloadLocalVO" }
+
+queryV3:
+  post:
+    tags: [File - Core]
+    summary: Query file by id (NAS)
+    operationId: queryV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryLocalDTO" }
+    responses:
+      "200":
+        description: File/folder metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryLocalVO" }
+
+queryByPathV3:
+  post:
+    tags: [File - Core]
+    summary: Query file by path (NAS)
+    operationId: queryByPathV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryByPathLocalDTO" }
+    responses:
+      "200":
+        description: File/folder metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryByPathLocalVO" }
+
+moveV3:
+  post:
+    tags: [File - Core]
+    summary: Move / rename (NAS)
+    operationId: moveV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileMoveLocalDTO" }
+    responses:
+      "200":
+        description: Metadata of moved/renamed item.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileMoveLocalVO" }
+
+copyV3:
+  post:
+    tags: [File - Core]
+    summary: Copy file/folder (NAS)
+    operationId: copyV3
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileCopyLocalDTO" }
+    responses:
+      "200":
+        description: Metadata of the new copy.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileCopyLocalVO" }
+
+getSpaceUsage:
+  post:
+    tags: [File - Core]
+    summary: Query capacity/quota (NAS)
+    operationId: getSpaceUsage
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/CapacityLocalDTO" }
+    responses:
+      "200":
+        description: Used vs. total quota.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/CapacityLocalVO" }
+
+noteToPdf:
+  post:
+    tags: [File - Core]
+    summary: Convert .note → PDF
+    operationId: noteToPdf
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/PdfDTO" }
+    responses:
+      "200":
+        description: Download URL of the generated PDF.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/PdfVO" }
+
+noteToPng:
+  post:
+    tags: [File - Core]
+    summary: Convert .note → PNG (per page)
+    operationId: noteToPng
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/PngDTO" }
+    responses:
+      "200":
+        description: Per-page PNG download URLs.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/PngVO" }
+
+pdfWithMarkToPdf:
+  post:
+    tags: [File - Core]
+    summary: Convert annotated-PDF note → PDF
+    operationId: pdfWithMarkToPdf
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/PdfDTO" }
+    responses:
+      "200":
+        description: Download URL of the generated PDF.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/PdfVO" }
+
+queryServer:
+  get:
+    tags: [File - Core]
+    summary: Connectivity ping (no business logic)
+    operationId: queryServer
+    security: []
+    responses:
+      "200":
+        description: Bare envelope.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+queryFileV2Deprecated:
+  post:
+    tags: [File - Core]
+    summary: "[Deprecated] Query file by id (dropbox)"
+    operationId: queryFileV2Deprecated
+    deprecated: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryV2DTO" }
+    responses:
+      "200":
+        description: File metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryV2VO" }
+
+queryFileByPathV2:
+  post:
+    tags: [File - Core]
+    summary: Query file by path (dropbox)
+    operationId: queryFileByPathV2
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryByPathV2DTO" }
+    responses:
+      "200":
+        description: File metadata.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileQueryByPathV2VO" }
+
+searchFileLabel:
+  post:
+    tags: [File - Core]
+    summary: Search files/folders by name
+    operationId: searchFileLabel
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/files-core.yaml#/FileLabelSearchDTO" }
+    responses:
+      "200":
+        description: Matching files/folders.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/files-core.yaml#/FileLabelSearchVO" }

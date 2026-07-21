@@ -1,0 +1,383 @@
+# File & Sync (core / NAS / dropbox) schemas. Derived from specs/files-core.md.
+# Dropbox-flavoured field names (content_hash, path_display, is_downloadable,
+# to_path) are protocol-facing and preserved verbatim.
+
+# --------------------------------------------------------- shared value objects
+EntriesVO:
+  type: object
+  description: Canonical file/folder representation (Dropbox-flavoured field names).
+  properties:
+    tag: { type: string, description: '"folder" / "file".' }
+    id: { type: string }
+    name: { type: string }
+    path_display: { type: string, description: Full display path (incl. file name). }
+    content_hash: { type: string, description: File MD5. }
+    is_downloadable: { type: boolean }
+    size: { type: integer, format: int64 }
+    lastUpdateTime: { type: integer, format: int64, description: Epoch ms. }
+    parent_path: { type: string, description: Parent path (excludes the file name). }
+
+MetadataVO:
+  type: object
+  description: Lighter metadata returned by create-folder and delete endpoints.
+  properties:
+    tag: { type: string }
+    id: { type: string }
+    name: { type: string }
+    path_display: { type: string }
+
+UserFileVO:
+  type: object
+  properties:
+    id: { type: string }
+    directoryId: { type: string }
+    fileName: { type: string }
+    size: { type: integer, format: int64 }
+    md5: { type: string }
+    isFolder: { type: string, enum: ["Y", "N"] }
+    createTime: { type: string, description: Date. }
+    updateTime: { type: string, description: Date. }
+
+UserFileSearchVO:
+  type: object
+  properties:
+    id: { type: string }
+    directoryId: { type: string }
+    fileName: { type: string }
+    directoryName: { type: string, description: Parent directory name. }
+    size: { type: integer, format: int64 }
+    md5: { type: string }
+    isFolder: { type: string, enum: ["Y", "N"] }
+    updateTime: { type: string, description: Date. }
+
+AllocationVO:
+  type: object
+  properties:
+    tag: { type: string, description: Allocation type (e.g. individual/personal). }
+    allocated: { type: integer, format: int64, description: Total allocated capacity (bytes). }
+
+PngPageVO:
+  type: object
+  properties:
+    pageNo: { type: integer }
+    url: { type: string, description: Download URL for that page's PNG. }
+
+# --------------------------------------------------------- DTOs
+FolderFileAddDTO:
+  type: object
+  required: [fileName, fileId, directoryId, goDirectoryId, isFolder]
+  properties:
+    fileName: { type: string, description: File name. "@NotBlank". }
+    fileId: { type: integer, format: int64, description: File id. "@NotNull". }
+    directoryId: { type: integer, format: int64, description: Parent directory id. "@NotNull". }
+    goDirectoryId: { type: integer, format: int64, description: Target parent directory id. "@NotNull". }
+    isFolder: { type: string, enum: ["Y", "N"], description: "Y=folder, N=file. @NotNull." }
+
+SynchronousStartLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string, description: Device number. }
+
+SynchronousEndLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    flag: { type: string, description: Synchronization success flag. }
+
+CreateFolderLocalDTO:
+  type: object
+  description: "@ResubmitCheck on (path, equipmentNo) when path != null."
+  properties:
+    equipmentNo: { type: string }
+    path: { type: string, description: Full path of the folder to create (empty → E0334). }
+    autorename: { type: boolean, description: Auto-rename on collision instead of failing. }
+
+ListFolderV2DTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    path: { type: string, description: Path; empty/blank lists the root directory. }
+    recursive: { type: boolean }
+
+ListFolderLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    id: { type: integer, format: int64, description: Directory id (root = 0). }
+    recursive: { type: boolean }
+
+DeleteFolderLocalDTO:
+  type: object
+  required: [id]
+  properties:
+    equipmentNo: { type: string }
+    id: { type: integer, format: int64, description: File/folder id to delete. "@NotNull". }
+
+FileUploadApplyLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    path: { type: string, description: Destination path. }
+    fileName: { type: string }
+    size: { type: string, description: File size in bytes (str or int accepted). }
+
+FileUploadFinishLocalDTO:
+  type: object
+  required: [fileName, content_hash, innerName]
+  properties:
+    equipmentNo: { type: string }
+    path: { type: string }
+    size: { type: string, description: File size (str or int). }
+    fileName: { type: string, description: File name. "@NotBlank". }
+    content_hash: { type: string, description: File MD5. "@NotBlank". }
+    innerName: { type: string, description: Internal object key returned by /upload/apply. "@NotBlank". }
+
+FileDownloadLocalDTO:
+  type: object
+  required: [id]
+  properties:
+    equipmentNo: { type: string }
+    id: { type: integer, format: int64, description: File id. "@NotNull". }
+
+FileQueryLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    id: { type: string, description: File id. }
+
+FileQueryByPathLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    path: { type: string, description: Full file path. }
+
+FileMoveLocalDTO:
+  type: object
+  required: [id]
+  properties:
+    equipmentNo: { type: string }
+    autorename: { type: boolean, description: Auto-rename on collision at destination. }
+    id: { type: integer, format: int64, description: File/folder id to move. "@NotNull". }
+    to_path: { type: string, description: Target parent directory (full path). }
+
+FileCopyLocalDTO:
+  type: object
+  required: [id, to_path]
+  properties:
+    equipmentNo: { type: string }
+    id: { type: integer, format: int64, description: File/folder id to copy. "@NotNull". }
+    autorename: { type: boolean }
+    to_path: { type: string, description: Target parent directory. "@NotEmpty". }
+
+CapacityLocalDTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+
+PdfDTO:
+  type: object
+  required: [id]
+  properties:
+    id: { type: integer, format: int64, description: Source file id. "@NotNull". }
+    host: { type: string, description: Host (base URL for the returned download link). }
+    pageNoList:
+      type: array
+      items: { type: integer }
+      description: Page numbers to include (omit for all pages).
+
+PngDTO:
+  type: object
+  required: [id]
+  properties:
+    id: { type: integer, format: int64, description: Source file id. "@NotNull". }
+    host: { type: string }
+
+FileQueryV2DTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    id: { type: string, description: File id. }
+
+FileQueryByPathV2DTO:
+  type: object
+  properties:
+    equipmentNo: { type: string }
+    fileName: { type: string }
+    path: { type: string }
+
+FileLabelSearchDTO:
+  type: object
+  required: [fileName, directoryId]
+  properties:
+    fileName: { type: string, description: Search term (matched LIKE '%term%'). "@NotBlank". }
+    directoryId: { type: integer, format: int64, description: Parent directory id (search scope). "@NotNull". }
+
+# --------------------------------------------------------- VOs
+FolderFileAddVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - $ref: "#/UserFileVO"
+
+SynchronousStartLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        synType:
+          type: boolean
+          description: "true = incremental sync; false = client must re-upload all file data (full re-seed)."
+
+SynchronousEndLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+
+CreateFolderLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        metadata: { $ref: "#/MetadataVO" }
+
+ListFolderLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entries:
+          type: array
+          items: { $ref: "#/EntriesVO" }
+
+DeleteFolderLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        metadata: { $ref: "#/MetadataVO" }
+
+FileUploadApplyLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        bucketName: { type: string, description: Object-storage bucket — constant "supernote". }
+        innerName: { type: string, description: Reserved internal object key to upload under. }
+        xAmzDate: { type: string, description: X-Amz-Date value for the signed request. }
+        authorization: { type: string, description: AWS SigV4 Authorization signature. }
+        fullUploadUrl: { type: string, description: Presigned PUT URL for a single (whole-file) upload. }
+        partUploadUrl: { type: string, description: Presigned URL for multipart/part upload. }
+
+FileUploadFinishLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        path_display: { type: string }
+        id: { type: string }
+        size: { type: integer, format: int64 }
+        name: { type: string }
+        content_hash: { type: string }
+
+FileDownloadLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        id: { type: string }
+        url: { type: string, description: Download URL. }
+        name: { type: string }
+        path_display: { type: string }
+        content_hash: { type: string }
+        size: { type: integer, format: int64 }
+        is_downloadable: { type: boolean }
+
+FileQueryLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entriesVO: { $ref: "#/EntriesVO" }
+
+FileQueryByPathLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entriesVO: { $ref: "#/EntriesVO" }
+
+FileMoveLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entriesVO: { $ref: "#/EntriesVO" }
+
+FileCopyLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entriesVO: { $ref: "#/EntriesVO" }
+
+CapacityLocalVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        used: { type: integer, format: int64, description: Used capacity (bytes). }
+        allocationVO: { $ref: "#/AllocationVO" }
+        equipmentNo: { type: string }
+
+PdfVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        url: { type: string, description: Download URL of the generated PDF. }
+
+PngVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        pngPageVOList:
+          type: array
+          items: { $ref: "#/PngPageVO" }
+
+FileQueryV2VO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entriesVO: { $ref: "#/EntriesVO" }
+
+FileQueryByPathV2VO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        entriesVO: { $ref: "#/EntriesVO" }
+
+FileLabelSearchVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        userFileSearchVOList:
+          type: array
+          items: { $ref: "#/UserFileSearchVO" }

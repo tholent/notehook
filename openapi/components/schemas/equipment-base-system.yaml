@@ -1,0 +1,297 @@
+# Equipment, Reference Data & System schemas. Derived from specs/equipment-base-system.md.
+
+# ------------------------------------------------------------- base paging DTO
+PageDTO:
+  type: object
+  description: com.ratta.base.dto.PageDTO (base paging).
+  required: [pageNo, pageSize]
+  properties:
+    pageNo: { type: integer, description: Page number. "@NotNull". }
+    pageSize: { type: integer, description: Page size. "@NotNull". }
+    sortField: { type: string }
+    sortRules: { type: string }
+
+# ------------------------------------------------------------- Equipment DTOs
+ActivateEquipmentDTO:
+  type: object
+  required: [equipmentNo]
+  properties:
+    equipmentNo: { type: string, description: Device serial number. "@NotBlank". }
+
+BindEquipmentDTO:
+  type: object
+  required: [equipmentNo, account, name, totalCapacity, label]
+  properties:
+    equipmentNo: { type: string, description: Device serial number. "@NotBlank". }
+    account: { type: string, description: Account (email/phone) to bind to. "@NotNull". }
+    countryCode: { type: string }
+    name: { type: string, description: Device display name. "@NotNull". }
+    totalCapacity: { type: string, description: Total device storage capacity. "@NotNull". }
+    flag: { type: string, description: "Flag (fixed value: 1)." }
+    label:
+      type: array
+      items: { type: string }
+      description: Tab-page labels. "@NotNull".
+
+UnbindEquipmentDTO:
+  type: object
+  required: [equipmentNo]
+  properties:
+    equipmentNo: { type: string, description: Device serial number. "@NotNull". }
+
+UserEquipmentDTO:
+  type: object
+  required: [equipmentNo]
+  properties:
+    equipmentNo: { type: string, description: Device serial number. "@NotNull". }
+
+QueryEquipmentDTO:
+  type: object
+  required: [pageNo, pageSize]
+  properties:
+    pageNo: { type: string, description: Page number. "@NotBlank". }
+    pageSize: { type: string, description: Items per page. "@NotBlank". }
+    equipmentNumber: { type: string }
+    firmwareVersion: { type: string }
+    countryCode: { type: string }
+    telephone: { type: string }
+    email: { type: string }
+
+EquipmentManualDTO:
+  type: object
+  required: [equipmentNo, language, logicVersion]
+  properties:
+    equipmentNo: { type: string, description: Device serial number. "@NotBlank". }
+    language: { type: string, enum: [JP, CN, HK, EN], description: Language. "@NotBlank". }
+    logicVersion: { type: string, description: Logic version number. "@NotBlank". }
+
+# ------------------------------------------------------------- Equipment VOs
+BindStatusVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        bindStatus: { type: boolean, description: "true = bound, false = not bound (default false)." }
+
+UserEquipmentVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNumber: { type: string }
+        userId: { type: integer, format: int64 }
+        name: { type: string }
+        status: { type: string, enum: ["Y", "N"], description: "Y = normal, N = locked." }
+
+UserEquipmentListVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentVOList:
+          type: array
+          items: { $ref: "#/UserEquipmentVO" }
+
+EquipmentVO:
+  type: object
+  description: Plain Serializable (no envelope) — internal DTO.
+  properties:
+    equipmentNumber: { type: string }
+    firmwareVersion: { type: string }
+    updateStatus: { type: string, description: "0 initial, 1 not updated, 2 updated." }
+    remark: { type: string }
+
+QueryEquipmentVO:
+  type: object
+  description: Plain Serializable (list element).
+  properties:
+    userId: { type: string }
+    equipmentNumber: { type: string }
+    name: { type: string }
+    firmwareVersion: { type: string }
+    createTime: { type: string, description: Device binding time (Date). }
+    activateTime: { type: string, description: Device activation time (Date). }
+    countryCode: { type: string }
+    telephone: { type: string }
+    email: { type: string }
+    status: { type: string, enum: ["Y", "N"] }
+    updateStatus: { type: string }
+    remark: { type: string }
+    fileServer: { type: string, description: "0 ufile, 1 aws." }
+
+QueryEquipmentListVO:
+  description: CommonListVO<QueryEquipmentVO>.
+  allOf:
+    - $ref: "common.yaml#/CommonListVO"
+    - type: object
+      properties:
+        voList:
+          type: array
+          items: { $ref: "#/QueryEquipmentVO" }
+
+EquipmentManualVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        equipmentNo: { type: string }
+        url: { type: string, description: Download URL. }
+        md5: { type: string }
+        fileName: { type: string }
+        version: { type: string }
+
+# ------------------------------------------------------------- Dictionary DTOs
+DictionaryQueryDTO:
+  type: object
+  properties:
+    name: { type: string, description: Business code. }
+    value: { type: string, description: Code / value. }
+
+DictionaryVagueDTO:
+  allOf:
+    - $ref: "#/PageDTO"
+    - type: object
+      properties:
+        name: { type: string, description: Dictionary name. }
+        valueMeaning: { type: string, description: Data meaning (fuzzy). }
+
+# ------------------------------------------------------------- Dictionary VOs
+DictionarysVO:
+  type: object
+  properties:
+    id: { type: integer, format: int64, description: Data id. }
+    valueMeaning: { type: string, description: Data meaning. }
+
+DictionaryVO:
+  type: object
+  properties:
+    id: { type: integer, format: int64 }
+    name: { type: string, description: Business code / name. }
+    value: { type: string, description: Coded value. }
+    valueCn: { type: string }
+    valueEn: { type: string }
+    valueJa: { type: string }
+    opUser: { type: string, description: Operator (created-by user). }
+    opTime: { type: string, description: Operation time (Date). }
+    remark: { type: string }
+
+DictionaryVagueVO:
+  type: object
+  properties:
+    id: { type: integer, format: int64 }
+    name: { type: string }
+    value: { type: string }
+    valueCn: { type: string }
+    valueEn: { type: string }
+    opUser: { type: string }
+    opTime: { type: string, description: Created time (Date). }
+    remark: { type: string }
+
+DictionaryByNameVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        dictionaryVOList:
+          type: array
+          items: { $ref: "#/DictionaryVO" }
+
+DictionaryListVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        dictionaryVOList:
+          type: array
+          items: { $ref: "#/DictionarysVO" }
+
+DictionaryVagueListVO:
+  description: CommonListVO<DictionaryVagueVO>.
+  allOf:
+    - $ref: "common.yaml#/CommonListVO"
+    - type: object
+      properties:
+        voList:
+          type: array
+          items: { $ref: "#/DictionaryVagueVO" }
+
+# ------------------------------------------------------------- Reference DTOs
+ReferenceQueryDTO:
+  type: object
+  required: [name]
+  properties:
+    serial: { type: string, description: Code / serial. }
+    name: { type: string, description: Business code. "@NotBlank". }
+
+ReferenceVaguaDTO:
+  allOf:
+    - $ref: "#/PageDTO"
+    - type: object
+      properties:
+        name: { type: string, description: Business code. }
+
+# ------------------------------------------------------------- Reference VOs
+ReferenceVO:
+  type: object
+  properties:
+    id: { type: integer, format: int64 }
+    serial: { type: string, description: Serial / code. }
+    name: { type: string, description: Business code. }
+    value: { type: string }
+    valueCn: { type: string }
+    opUser: { type: string }
+    opTime: { type: string, description: Operation time (Date). }
+    remark: { type: string }
+
+ReferenceInfoVO:
+  type: object
+  properties:
+    serial: { type: string, description: Serial number. }
+    name: { type: string, description: Parameter code. }
+    value: { type: string, description: Parameter value. }
+
+ReferenceListVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        referenceVOList:
+          type: array
+          items: { $ref: "#/ReferenceVO" }
+
+ReferenceRespVO:
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        paramList:
+          type: array
+          items: { $ref: "#/ReferenceInfoVO" }
+        random: { type: string, description: Random number for secure-login verification. }
+
+ReferenceCommonListVO:
+  description: CommonListVO<ReferenceVO>.
+  allOf:
+    - $ref: "common.yaml#/CommonListVO"
+    - type: object
+      properties:
+        voList:
+          type: array
+          items: { $ref: "#/ReferenceVO" }
+
+# ------------------------------------------------------------- System log
+LogLevelVO:
+  description: CommonVO<Map<String,Object>> — voT maps logger name → level/metadata.
+  allOf:
+    - $ref: "common.yaml#/BaseVO"
+    - type: object
+      properties:
+        voT:
+          type: object
+          additionalProperties: true
+          description: Logger name → current level/metadata.
+
+LogLevelUpdateDTO:
+  type: object
+  description: Raw Map<String,String>; only ERROR/WARN/INFO accepted. Exact key names uncertain (body stripped).
+  additionalProperties: { type: string }

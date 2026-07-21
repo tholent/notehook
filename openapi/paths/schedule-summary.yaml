@@ -1,0 +1,521 @@
+# Schedule & Summary paths. Derived from specs/schedule-summary.md.
+# URLs with more than one HTTP method are combined into a single path-item key.
+# Note: some DELETE operations carry a request body (matches the actual contract).
+
+# ------------------------------------------------------- Schedule
+scheduleGroup:
+  post:
+    tags: [Schedule]
+    summary: Add a task list (schedule group)
+    operationId: addScheduleGroup
+    description: "@ResubmitCheck guarded → 409 on duplicate."
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddScheduleTaskGroupDTO" }
+    responses:
+      "200":
+        description: Created task-list id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddScheduleTaskGroupVO" }
+  put:
+    tags: [Schedule]
+    summary: Update a task list
+    operationId: updateScheduleGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateScheduleTaskGroupDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+scheduleGroupWithId:
+  get:
+    tags: [Schedule]
+    summary: Get one task list
+    operationId: getScheduleGroup
+    parameters:
+      - { name: taskListId, in: path, required: true, schema: { type: string } }
+    responses:
+      "200":
+        description: Task list.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/GetScheduleTaskGroupVO" }
+  delete:
+    tags: [Schedule]
+    summary: Delete a task list
+    operationId: deleteScheduleGroup
+    parameters:
+      - { name: taskListId, in: path, required: true, schema: { type: string } }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+clearScheduleGroup:
+  post:
+    tags: [Schedule]
+    summary: Clear all tasks in a task list
+    operationId: clearScheduleGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/ClearScheduleTaskGroupDTO" }
+    responses:
+      "200":
+        description: Clear result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+getAllScheduleGroups:
+  post:
+    tags: [Schedule]
+    summary: Get all task lists (paged)
+    operationId: getAllScheduleGroups
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleTaskGroupDTO" }
+    responses:
+      "200":
+        description: Task lists.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleTaskGroupVO" }
+
+scheduleTask:
+  post:
+    tags: [Schedule]
+    summary: Add a task
+    operationId: addScheduleTask
+    description: "@ResubmitCheck guarded → 409 on duplicate."
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddScheduleTaskDTO" }
+    responses:
+      "200":
+        description: Created task id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddScheduleTaskVO" }
+  put:
+    tags: [Schedule]
+    summary: Update a task
+    operationId: updateScheduleTask
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateScheduleTaskDTO" }
+    responses:
+      "200":
+        description: Updated task id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateScheduleTaskVO" }
+
+updateScheduleTaskList:
+  put:
+    tags: [Schedule]
+    summary: Batch update tasks
+    operationId: updateScheduleTaskList
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateScheduleTaskListDTO" }
+    responses:
+      "200":
+        description: Batch-update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+scheduleTaskWithId:
+  get:
+    tags: [Schedule]
+    summary: Get one task (with recurrences)
+    operationId: getScheduleTask
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string } }
+    responses:
+      "200":
+        description: Task + recurrence occurrences.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleTaskVO" }
+  delete:
+    tags: [Schedule]
+    summary: Delete a task
+    operationId: deleteScheduleTask
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string } }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+getAllScheduleTasks:
+  post:
+    tags: [Schedule]
+    summary: Get all tasks (delta sync, paged)
+    operationId: getAllScheduleTasks
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleTaskDTO" }
+    responses:
+      "200":
+        description: Tasks (delta since nextSyncToken).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleTaskAllVO" }
+
+scheduleSort:
+  post:
+    tags: [Schedule]
+    summary: Add a sort record for a list
+    operationId: addScheduleSort
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleSortDTO" }
+    responses:
+      "200":
+        description: Add result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+  put:
+    tags: [Schedule]
+    summary: Update a sort record
+    operationId: updateScheduleSort
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/ScheduleSortDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+deleteScheduleSort:
+  delete:
+    tags: [Schedule]
+    summary: Delete a list's sort record
+    operationId: deleteScheduleSort
+    parameters:
+      - { name: taskListId, in: path, required: true, schema: { type: string } }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+getScheduleSort:
+  post:
+    tags: [Schedule]
+    summary: Get sort records (cursor paged)
+    operationId: getScheduleSort
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/GetScheduleSortDTO" }
+    responses:
+      "200":
+        description: One sort record + next cursor.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/GetScheduleSortVO" }
+
+# ------------------------------------------------------- Summary
+addSummaryTag:
+  post:
+    tags: [Summary]
+    summary: Add a summary tag
+    operationId: addSummaryTag
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddSummaryTagDTO" }
+    responses:
+      "200":
+        description: Created tag id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddSummaryTagVO" }
+
+updateSummaryTag:
+  put:
+    tags: [Summary]
+    summary: Update a summary tag
+    operationId: updateSummaryTag
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateSummaryTagDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+deleteSummaryTag:
+  delete:
+    tags: [Summary]
+    summary: Delete a summary tag
+    operationId: deleteSummaryTag
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/DeleteSummaryTagDTO" }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+querySummaryTag:
+  get:
+    tags: [Summary]
+    summary: Query all tags
+    operationId: querySummaryTag
+    responses:
+      "200":
+        description: All of the user's tags.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryTagVO" }
+
+addSummaryGroup:
+  post:
+    tags: [Summary]
+    summary: Add a summary library (group)
+    operationId: addSummaryGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddSummaryGroupDTO" }
+    responses:
+      "200":
+        description: Created library id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddSummaryGroupVO" }
+
+updateSummaryGroup:
+  put:
+    tags: [Summary]
+    summary: Update a summary library
+    operationId: updateSummaryGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateSummaryGroupDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+deleteSummaryGroup:
+  delete:
+    tags: [Summary]
+    summary: Delete a summary library
+    operationId: deleteSummaryGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/DeleteSummaryGroupDTO" }
+    responses:
+      "200":
+        description: Delete result (cascades to members).
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+querySummaryGroup:
+  post:
+    tags: [Summary]
+    summary: Query all summary libraries (paged)
+    operationId: querySummaryGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryGroupDTO" }
+    responses:
+      "200":
+        description: Library rows.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryGroupVO" }
+
+addSummary:
+  post:
+    tags: [Summary]
+    summary: Add a summary
+    operationId: addSummary
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddSummaryDTO" }
+    responses:
+      "200":
+        description: Created summary id.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/AddSummaryVO" }
+
+updateSummary:
+  put:
+    tags: [Summary]
+    summary: Update a summary
+    operationId: updateSummary
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UpdateSummaryDTO" }
+    responses:
+      "200":
+        description: Update result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+deleteSummary:
+  delete:
+    tags: [Summary]
+    summary: Delete a summary
+    operationId: deleteSummary
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/DeleteSummaryDTO" }
+    responses:
+      "200":
+        description: Delete result.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/common.yaml#/BaseVO" }
+
+querySummaryById:
+  post:
+    tags: [Summary]
+    summary: Query summaries by id set
+    operationId: querySummaryById
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryDTO" }
+    responses:
+      "200":
+        description: Matching summaries.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryByIdVO" }
+
+querySummaryMD5Hash:
+  post:
+    tags: [Summary]
+    summary: Query all summary MD5 hashes (paged)
+    operationId: querySummaryMD5Hash
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryDTO" }
+    responses:
+      "200":
+        description: Slim per-summary diff info.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryMD5HashVO" }
+
+querySummary:
+  post:
+    tags: [Summary]
+    summary: Query all summaries (paged)
+    operationId: querySummary
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryDTO" }
+    responses:
+      "200":
+        description: Full summary rows.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/QuerySummaryVO" }
+
+downloadSummary:
+  post:
+    tags: [Summary]
+    summary: Get a download URL for a summary file
+    operationId: downloadSummary
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/DownloadSummaryDTO" }
+    responses:
+      "200":
+        description: Pre-signed download URL.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/DownloadSummaryVO" }
+
+uploadApplySummary:
+  post:
+    tags: [Summary]
+    summary: Apply for a summary-file upload URL
+    operationId: uploadApplySummary
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../components/schemas/schedule-summary.yaml#/UploadSummaryApplyDTO" }
+    responses:
+      "200":
+        description: Pre-signed upload URLs + innerName.
+        content:
+          application/json:
+            schema: { $ref: "../components/schemas/schedule-summary.yaml#/UploadSummaryApplyVO" }

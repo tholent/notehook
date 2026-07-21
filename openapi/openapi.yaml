@@ -1,0 +1,225 @@
+openapi: 3.0.3
+info:
+  title: Supernote Private-Cloud Server API
+  description: |
+    OpenAPI 3.0 description of the `supernote-service` server (the self-hosted
+    "Supernote Private Cloud" backend).
+
+    Generated **solely** from the Markdown specification in `specs/` (which was
+    itself reverse-engineered from a ClassFinal-protected Spring Boot JAR whose
+    method bodies are stripped). Request/response *shapes*, paths, verbs,
+    validation and error codes are authoritative; behavioural descriptions are
+    inferred. See `specs/README.md` for the full narrative and `specs/error-codes.md`
+    for the complete error catalogue.
+
+    Conventions:
+    - Almost every response extends `BaseVO { success, errorCode, errorMsg }`.
+      Logical failures return **HTTP 200 with `success:false`** (not 4xx/5xx),
+      except: invalid token → 401; multipart upload failure → 500
+      (`FILE_UPLOAD_FAILED`); download failure → 500 plain text.
+    - Auth is the `x-access-token` JWT header (declared as the default security
+      scheme). Public entry points override with `security: []`. The object-storage
+      transfer endpoints authenticate with an HMAC URL signature, not the JWT.
+    - `equipmentNo` (device serial) is an additional header honoured by most
+      endpoints; it is declared as a reusable optional header parameter.
+  version: "1.0.0"
+  contact:
+    name: Reverse-engineered spec — see specs/
+servers:
+  - url: http://localhost:19071
+    description: Default self-hosted server (server.port=19071)
+  - url: http://{host}:{port}
+    description: Configurable self-hosted deployment
+    variables:
+      host: { default: localhost }
+      port: { default: "19071" }
+
+tags:
+  - name: Authentication
+  - name: User
+  - name: Account
+  - name: Email Server
+  - name: File - Core
+  - name: File - Upload/Share/OSS
+  - name: Object Storage
+  - name: Schedule
+  - name: Summary
+  - name: Equipment
+  - name: Dictionary
+  - name: Reference
+  - name: System Log
+
+security:
+  - accessToken: []
+
+paths:
+  # ------------------------------------------------------ Authentication
+  /api/official/user/account/login/new:      { $ref: "./paths/authentication.yaml#/loginNew" }
+  /api/official/user/account/login/mfa/verify: { $ref: "./paths/authentication.yaml#/mfaLoginVerify" }
+  /api/official/user/account/login/equipment: { $ref: "./paths/authentication.yaml#/loginEquipment" }
+  /api/user/sms/login:                       { $ref: "./paths/authentication.yaml#/smsLogin" }
+  /api/user/logout:                          { $ref: "./paths/authentication.yaml#/logout" }
+  /api/user/query/loginRecord:               { $ref: "./paths/authentication.yaml#/queryLoginRecord" }
+  /api/user/query/token:                     { $ref: "./paths/authentication.yaml#/queryToken" }
+  /api/official/user/query/random/code:      { $ref: "./paths/authentication.yaml#/randomCode" }
+  /api/user/mfa/setup:                       { $ref: "./paths/authentication.yaml#/mfaSetup" }
+  /api/user/mfa/enable:                      { $ref: "./paths/authentication.yaml#/mfaEnable" }
+  /api/user/mfa/disable:                     { $ref: "./paths/authentication.yaml#/mfaDisable" }
+  /api/user/mfa/recovery/regenerate:         { $ref: "./paths/authentication.yaml#/mfaRecoveryRegenerate" }
+  /api/user/mfa/status:                      { $ref: "./paths/authentication.yaml#/mfaStatus" }
+  /api/user/mail/validcode:                  { $ref: "./paths/authentication.yaml#/sendEmailValidCode" }
+  /api/user/check/validcode:                 { $ref: "./paths/authentication.yaml#/checkValidCode" }
+  /api/base/pic/code:                        { $ref: "./paths/authentication.yaml#/getPicCode" }
+  /api/terminal/send/password/unlock/code:   { $ref: "./paths/authentication.yaml#/sendPasswordUnlockCode" }
+  /api/official/user/retrieve/password:      { $ref: "./paths/authentication.yaml#/retrievePassword" }
+  /api/user/password:                        { $ref: "./paths/authentication.yaml#/updatePassword" }
+  /api/user/query/sensitive/record:          { $ref: "./paths/authentication.yaml#/querySensitiveRecord" }
+
+  # ------------------------------------------------------ User & Account
+  /api/user/check/exists:                    { $ref: "./paths/users-accounts.yaml#/checkExists" }
+  /api/official/user/check/exists/server:    { $ref: "./paths/users-accounts.yaml#/checkExistsServer" }
+  /api/user/query:                           { $ref: "./paths/users-accounts.yaml#/queryUserById" }
+  /api/user/query/info:                      { $ref: "./paths/users-accounts.yaml#/queryUserInfo" }
+  /api/user/update:                          { $ref: "./paths/users-accounts.yaml#/updateUser" }
+  /api/user/update/name:                     { $ref: "./paths/users-accounts.yaml#/updateUserName" }
+  /api/user/query/all:                       { $ref: "./paths/users-accounts.yaml#/queryAllUsers" }
+  /api/user/freeze:                          { $ref: "./paths/users-accounts.yaml#/freezeUser" }
+  /api/user/query/one:                       { $ref: "./paths/users-accounts.yaml#/queryOneUser" }
+  /api/user/query/user/{userId}:             { $ref: "./paths/users-accounts.yaml#/queryUserByPathId" }
+  /api/user/register/restriction:            { $ref: "./paths/users-accounts.yaml#/registrationRestriction" }
+  /api/user/email:                           { $ref: "./paths/users-accounts.yaml#/updateEmail" }
+  /api/user/register:                        { $ref: "./paths/users-accounts.yaml#/userRegister" }
+  /api/user/account/clear:                   { $ref: "./paths/users-accounts.yaml#/accountClear" }
+  /api/save/email/config:                    { $ref: "./paths/users-accounts.yaml#/saveEmailConfig" }
+  /api/send/email/test:                      { $ref: "./paths/users-accounts.yaml#/testEmailSettings" }
+  /api/query/email/config:                   { $ref: "./paths/users-accounts.yaml#/queryEmailServer" }
+  /api/query/email/publickey:                { $ref: "./paths/users-accounts.yaml#/queryEmailPublicKey" }
+
+  # ------------------------------------------------------ Files (core / NAS / dropbox)
+  /api/file/add/folder/file/deleteApi:       { $ref: "./paths/files-core.yaml#/addFolderFileDeprecated" }
+  /api/file/2/files/synchronous/start:       { $ref: "./paths/files-core.yaml#/syncStart" }
+  /api/file/2/files/synchronous/end:         { $ref: "./paths/files-core.yaml#/syncEnd" }
+  /api/file/2/files/create_folder_v2:        { $ref: "./paths/files-core.yaml#/createFolderV2" }
+  /api/file/2/files/list_folder:             { $ref: "./paths/files-core.yaml#/listFolder" }
+  /api/file/3/files/list_folder_v3:          { $ref: "./paths/files-core.yaml#/listFolderV3" }
+  /api/file/3/files/delete_folder_v3:        { $ref: "./paths/files-core.yaml#/deleteFolderV3" }
+  /api/file/3/files/upload/apply:            { $ref: "./paths/files-core.yaml#/uploadApplyV3" }
+  /api/file/2/files/upload/finish:           { $ref: "./paths/files-core.yaml#/uploadFinishV2" }
+  /api/file/3/files/download_v3:             { $ref: "./paths/files-core.yaml#/downloadV3" }
+  /api/file/3/files/query_v3:                { $ref: "./paths/files-core.yaml#/queryV3" }
+  /api/file/3/files/query/by/path_v3:        { $ref: "./paths/files-core.yaml#/queryByPathV3" }
+  /api/file/3/files/move_v3:                 { $ref: "./paths/files-core.yaml#/moveV3" }
+  /api/file/3/files/copy_v3:                 { $ref: "./paths/files-core.yaml#/copyV3" }
+  /api/file/2/users/get_space_usage:         { $ref: "./paths/files-core.yaml#/getSpaceUsage" }
+  /api/file/note/to/pdf:                     { $ref: "./paths/files-core.yaml#/noteToPdf" }
+  /api/file/note/to/png:                     { $ref: "./paths/files-core.yaml#/noteToPng" }
+  /api/file/pdfwithmark/to/pdf:              { $ref: "./paths/files-core.yaml#/pdfWithMarkToPdf" }
+  /api/file/query/server:                    { $ref: "./paths/files-core.yaml#/queryServer" }
+  /api/file/2/files/query/deleteApi:         { $ref: "./paths/files-core.yaml#/queryFileV2Deprecated" }
+  /api/file/2/files:                         { $ref: "./paths/files-core.yaml#/queryFileByPathV2" }
+  /api/file/label/list/search:               { $ref: "./paths/files-core.yaml#/searchFileLabel" }
+
+  # ------------------------------------------------------ File upload / share / OSS
+  /api/file/upload/ftp/{innerName}/deleteApi: { $ref: "./paths/files-upload-share-oss.yaml#/ftpUpload" }
+  /api/file/terminal/upload/apply:           { $ref: "./paths/files-upload-share-oss.yaml#/terminalUploadApply" }
+  /api/file/terminal/upload/finish:          { $ref: "./paths/files-upload-share-oss.yaml#/terminalUploadFinish" }
+  /api/file/list/query:                      { $ref: "./paths/files-upload-share-oss.yaml#/queryFileList" }
+  /api/file/folder/list/query:               { $ref: "./paths/files-upload-share-oss.yaml#/queryFolderList" }
+  /api/file/capacity/query:                  { $ref: "./paths/files-upload-share-oss.yaml#/queryCapacity" }
+  /api/file/delete:                          { $ref: "./paths/files-upload-share-oss.yaml#/deleteFile" }
+  /api/file/folder/add:                      { $ref: "./paths/files-upload-share-oss.yaml#/addFolder" }
+  /api/file/move:                            { $ref: "./paths/files-upload-share-oss.yaml#/moveFile" }
+  /api/file/copy:                            { $ref: "./paths/files-upload-share-oss.yaml#/copyFile" }
+  /api/file/rename:                          { $ref: "./paths/files-upload-share-oss.yaml#/renameFile" }
+  /api/file/list/search:                     { $ref: "./paths/files-upload-share-oss.yaml#/searchFile" }
+  /api/file/recycle/list/query:              { $ref: "./paths/files-upload-share-oss.yaml#/queryRecycleList" }
+  /api/file/recycle/clear:                   { $ref: "./paths/files-upload-share-oss.yaml#/clearRecycle" }
+  /api/file/recycle/delete:                  { $ref: "./paths/files-upload-share-oss.yaml#/deleteRecycle" }
+  /api/file/recycle/revert:                  { $ref: "./paths/files-upload-share-oss.yaml#/revertRecycle" }
+  /api/file/download/url:                    { $ref: "./paths/files-upload-share-oss.yaml#/getDownloadUrl" }
+  /api/file/path/query:                      { $ref: "./paths/files-upload-share-oss.yaml#/queryFilePath" }
+  /api/file/upload/apply:                    { $ref: "./paths/files-upload-share-oss.yaml#/uploadApply" }
+  /api/file/upload/finish:                   { $ref: "./paths/files-upload-share-oss.yaml#/uploadFinish" }
+  /api/file/share/record/add:                { $ref: "./paths/files-upload-share-oss.yaml#/addShareRecord" }
+  /api/oss/generate/upload/url:              { $ref: "./paths/files-upload-share-oss.yaml#/generateUploadUrl" }
+  /api/oss/upload:                           { $ref: "./paths/files-upload-share-oss.yaml#/uploadFile" }
+  /api/oss/upload/part:                      { $ref: "./paths/files-upload-share-oss.yaml#/uploadPart" }
+  /api/oss/generate/download/url:            { $ref: "./paths/files-upload-share-oss.yaml#/generateDownloadUrl" }
+  /api/oss/download:                         { $ref: "./paths/files-upload-share-oss.yaml#/downloadFile" }
+
+  # ------------------------------------------------------ Schedule
+  /api/file/schedule/group:                  { $ref: "./paths/schedule-summary.yaml#/scheduleGroup" }
+  /api/file/schedule/group/{taskListId}:     { $ref: "./paths/schedule-summary.yaml#/scheduleGroupWithId" }
+  /api/file/schedule/group/clear:            { $ref: "./paths/schedule-summary.yaml#/clearScheduleGroup" }
+  /api/file/schedule/group/all:              { $ref: "./paths/schedule-summary.yaml#/getAllScheduleGroups" }
+  /api/file/schedule/task:                   { $ref: "./paths/schedule-summary.yaml#/scheduleTask" }
+  /api/file/schedule/task/list:              { $ref: "./paths/schedule-summary.yaml#/updateScheduleTaskList" }
+  /api/file/schedule/task/{taskId}:          { $ref: "./paths/schedule-summary.yaml#/scheduleTaskWithId" }
+  /api/file/schedule/task/all:               { $ref: "./paths/schedule-summary.yaml#/getAllScheduleTasks" }
+  /api/file/schedule/sort:                   { $ref: "./paths/schedule-summary.yaml#/scheduleSort" }
+  /api/file/schedule/sort/{taskListId}:      { $ref: "./paths/schedule-summary.yaml#/deleteScheduleSort" }
+  /api/file/query/schedule/sort:             { $ref: "./paths/schedule-summary.yaml#/getScheduleSort" }
+
+  # ------------------------------------------------------ Summary
+  /api/file/add/summary/tag:                 { $ref: "./paths/schedule-summary.yaml#/addSummaryTag" }
+  /api/file/update/summary/tag:              { $ref: "./paths/schedule-summary.yaml#/updateSummaryTag" }
+  /api/file/delete/summary/tag:              { $ref: "./paths/schedule-summary.yaml#/deleteSummaryTag" }
+  /api/file/query/summary/tag:               { $ref: "./paths/schedule-summary.yaml#/querySummaryTag" }
+  /api/file/add/summary/group:               { $ref: "./paths/schedule-summary.yaml#/addSummaryGroup" }
+  /api/file/update/summary/group:            { $ref: "./paths/schedule-summary.yaml#/updateSummaryGroup" }
+  /api/file/delete/summary/group:            { $ref: "./paths/schedule-summary.yaml#/deleteSummaryGroup" }
+  /api/file/query/summary/group:             { $ref: "./paths/schedule-summary.yaml#/querySummaryGroup" }
+  /api/file/add/summary:                     { $ref: "./paths/schedule-summary.yaml#/addSummary" }
+  /api/file/update/summary:                  { $ref: "./paths/schedule-summary.yaml#/updateSummary" }
+  /api/file/delete/summary:                  { $ref: "./paths/schedule-summary.yaml#/deleteSummary" }
+  /api/file/query/summary/id:                { $ref: "./paths/schedule-summary.yaml#/querySummaryById" }
+  /api/file/query/summary/hash:              { $ref: "./paths/schedule-summary.yaml#/querySummaryMD5Hash" }
+  /api/file/query/summary:                   { $ref: "./paths/schedule-summary.yaml#/querySummary" }
+  /api/file/download/summary:                { $ref: "./paths/schedule-summary.yaml#/downloadSummary" }
+  /api/file/upload/apply/summary:            { $ref: "./paths/schedule-summary.yaml#/uploadApplySummary" }
+
+  # ------------------------------------------------------ Equipment
+  /api/terminal/user/activateEquipment:      { $ref: "./paths/equipment-base-system.yaml#/activateEquipment" }
+  /api/terminal/user/bindEquipment:          { $ref: "./paths/equipment-base-system.yaml#/bindEquipment" }
+  /api/terminal/equipment/unlink:            { $ref: "./paths/equipment-base-system.yaml#/unbindEquipment" }
+  /api/equipment/bind/status:                { $ref: "./paths/equipment-base-system.yaml#/bindStatus" }
+  /api/equipment/query/user/equipment/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/queryUserEquipmentDeprecated" }
+  /api/equipment/query/by/equipmentno:       { $ref: "./paths/equipment-base-system.yaml#/queryUserEquipmentByNo" }
+  /api/equipment/manual/deleteApi:           { $ref: "./paths/equipment-base-system.yaml#/queryEquipmentManualDeprecated" }
+  /api/equipment/query/{equipmentNo}/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/queryEquipmentByNoDeprecated" }
+  /api/equipment/query/by/{userId}:          { $ref: "./paths/equipment-base-system.yaml#/queryUserEquipmentByUserId" }
+  /api/equipment/delete/{equipmentNumber}/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/deleteByEquipmentNumberDeprecated" }
+
+  # ------------------------------------------------------ Dictionary
+  /api/system/base/dictionary/deleteApi:     { $ref: "./paths/equipment-base-system.yaml#/dictionaryResource" }
+  /api/system/base/dictionary/{id}/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/queryDictionaryById" }
+  /api/system/base/dictionary/param/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/queryDictionaryByParam" }
+  /api/system/base/dictionary/by/{name}/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/queryDictionaryByName" }
+
+  # ------------------------------------------------------ Reference
+  /api/system/base/reference/deleteApi:      { $ref: "./paths/equipment-base-system.yaml#/queryRefDeprecated" }
+  /api/system/base/reference/{id}/deleteApi: { $ref: "./paths/equipment-base-system.yaml#/queryRefById" }
+  /api/system/base/reference/param:          { $ref: "./paths/equipment-base-system.yaml#/queryReferenceByParam" }
+  /api/official/system/base/param:           { $ref: "./paths/equipment-base-system.yaml#/getReference" }
+
+  # ------------------------------------------------------ System Log
+  /api/system/log/level:                     { $ref: "./paths/equipment-base-system.yaml#/logLevel" }
+
+components:
+  securitySchemes:
+    accessToken:
+      type: apiKey
+      in: header
+      name: x-access-token
+      description: "JWT (HS256) session token. Public endpoints override with an empty security list."
+  parameters:
+    equipmentNoHeader:
+      name: equipmentNo
+      in: header
+      required: false
+      description: Device serial number; honoured by most endpoints alongside the token.
+      schema: { type: string }
+  schemas:
+    BaseVO:        { $ref: "./components/schemas/common.yaml#/BaseVO" }
+    CommonVO:      { $ref: "./components/schemas/common.yaml#/CommonVO" }
+    CommonListVO:  { $ref: "./components/schemas/common.yaml#/CommonListVO" }
