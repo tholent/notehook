@@ -35,10 +35,18 @@ class SupernoteApiClient:
         self.token: str | None = None
 
     def _check(self, resp: httpx.Response) -> dict[str, Any]:
-        resp.raise_for_status()
-        body: dict[str, Any] = resp.json()
+        # The server signals logical failures through the BaseVO envelope, and
+        # an invalid/expired token through HTTP 401 *with* that envelope body.
+        # Parse the envelope first so token expiry surfaces as a clean ApiError
+        # ("401"/"Unauthorized") rather than a bare httpx.HTTPStatusError.
+        try:
+            body: dict[str, Any] = resp.json()
+        except ValueError:
+            resp.raise_for_status()
+            raise
         if not body.get("success"):
             raise ApiError(body.get("errorCode"), body.get("errorMsg"))
+        resp.raise_for_status()
         return body
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:

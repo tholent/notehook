@@ -39,7 +39,7 @@ def test_upload_bad_signature_rejected(device: FakeDevice) -> None:
         files={"file": ("f.note", b"data")},
     )
     assert resp.json()["success"] is False
-    assert resp.json()["errorCode"] == "3003"
+    assert resp.json()["errorCode"] == "E1306"
 
 
 def test_upload_path_signature_mismatch_rejected(device: FakeDevice) -> None:
@@ -75,7 +75,7 @@ def test_finish_wrong_hash_rejected(device: FakeDevice) -> None:
         },
     )
     assert finish["success"] is False
-    assert finish["errorCode"] == "3001"
+    assert finish["errorCode"] == "E1305"
 
 
 def test_finish_without_upload_rejected(device: FakeDevice) -> None:
@@ -131,7 +131,7 @@ def test_download_traversal_rejected(device: FakeDevice) -> None:
         },
     )
     assert resp.json()["success"] is False
-    assert resp.json()["errorCode"] == "2004"
+    assert resp.json()["errorCode"] == "E0354"
 
 
 def test_max_upload_size_enforced(settings: Settings) -> None:
@@ -173,7 +173,7 @@ def test_quota_enforced(settings: Settings) -> None:
         assert vo["success"]
         resp = client.post(vo["fullUploadUrl"], files={"file": ("over.note", b"y" * 80)})
         assert resp.json()["success"] is False
-        assert resp.json()["errorCode"] == "3002"
+        assert resp.json()["errorCode"] == "E0309"
 
 
 def test_login_rate_limit(settings: Settings) -> None:
@@ -188,7 +188,7 @@ def test_login_rate_limit(settings: Settings) -> None:
             results.append(resp.json())
         assert results[2]["success"] is True
         assert results[3]["success"] is False
-        assert results[3]["errorCode"] == "1003"
+        assert results[3]["errorCode"] == "E0045"
 
 
 def test_capture_redacts_secrets(settings: Settings) -> None:

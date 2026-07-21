@@ -78,7 +78,7 @@ def test_delete_missing_id(device: FakeDevice) -> None:
         "/api/file/3/files/delete_folder_v3", {"equipmentNo": device.equipment_no, "id": 424242}
     )
     assert vo["success"] is False
-    assert vo["errorCode"] == "2001"
+    assert vo["errorCode"] == "E0308"
 
 
 def test_move_renames_and_relocates(device: FakeDevice) -> None:
@@ -108,7 +108,7 @@ def test_move_conflict_without_autorename(device: FakeDevice) -> None:
         {"equipmentNo": device.equipment_no, "id": int(a["id"]), "to_path": "/Note/b.note"},
     )
     assert vo["success"] is False
-    assert vo["errorCode"] == "2002"
+    assert vo["errorCode"] == "E0304"
 
 
 def test_move_folder_into_itself_rejected(device: FakeDevice) -> None:

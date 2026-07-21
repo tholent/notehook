@@ -41,7 +41,7 @@ def get_current(
     x_access_token: Annotated[str | None, Header()] = None,
 ) -> AuthContext:
     if not x_access_token:
-        raise TokenInvalid("missing x-access-token header")
+        raise TokenInvalid()
     record = auth.validate_token(db, x_access_token)
     user = db.get(User, record.user_id)
     equipment = db.get(Equipment, record.equipment_id)

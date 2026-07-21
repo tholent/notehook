@@ -15,10 +15,10 @@ def test_ok_envelope() -> None:
 
 
 def test_fail_envelope() -> None:
-    vo = fail("1001", "bad password")
+    vo = fail("E0019", "Password error")
     assert vo.success is False
-    assert vo.errorCode == "1001"
-    assert vo.errorMsg == "bad password"
+    assert vo.errorCode == "E0019"
+    assert vo.errorMsg == "Password error"
 
 
 def test_extra_fields_ignored() -> None:

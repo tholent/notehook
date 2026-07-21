@@ -88,11 +88,11 @@ class AuthService:
     ) -> tuple[str, User]:
         self._limiter.check(f"login:{account}")
         if account.lower() != self._settings.account.lower():
-            raise AuthFailed("unknown account")
+            raise AuthFailed(code="E0018", msg="Account does not exist")
 
         random_code = self._nonces.pop(account.lower())
         if random_code is None:
-            raise AuthFailed("no random code issued (call random/code first)")
+            raise AuthFailed(code="E0561", msg="Random number does not exist")
 
         pw_md5 = self._settings.password_md5
         candidates = {
@@ -108,7 +108,7 @@ class AuthService:
             None,
         )
         if matched is None:
-            raise AuthFailed("wrong password")
+            raise AuthFailed()  # canonical E0019 "Password error"
         # Which scheme real firmware uses is unknown until observed — record it.
         logger.info(
             "login ok for %s using %s scheme (equipment=%s)", account, matched, equipment_no

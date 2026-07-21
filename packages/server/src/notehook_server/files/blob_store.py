@@ -32,7 +32,7 @@ def make_inner_name(equipment_no: str | None, file_name: str | None) -> str:
 
 def validate_inner_name(inner_name: str) -> str:
     if not _INNER_NAME.match(inner_name):
-        raise InvalidPath("invalid storage name")
+        raise InvalidPath(code="E0354", msg="The invalid path on the private storage disk")
     return inner_name
 
 

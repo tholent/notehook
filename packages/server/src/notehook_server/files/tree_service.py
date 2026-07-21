@@ -174,7 +174,7 @@ def create_folder(
 ) -> FileNode:
     parts = split_path(path)
     if not parts:
-        raise InvalidPath("empty folder path")
+        raise InvalidPath(code="E0334", msg="The path cannot be empty.")
     parent_id = ROOT_ID
     # Intermediate segments are created (or reused) without renaming; only the
     # leaf folder participates in autorename/conflict handling.

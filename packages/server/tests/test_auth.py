@@ -53,7 +53,7 @@ def test_login_wrong_password(client: TestClient) -> None:
     )
     assert resp.status_code == 200  # envelope convention: logical failure, HTTP 200
     assert resp.json()["success"] is False
-    assert resp.json()["errorCode"] == "1001"
+    assert resp.json()["errorCode"] == "E0019"  # UserErrorCodeEnum "Password error"
 
 
 def test_login_unknown_account(client: TestClient) -> None:
@@ -110,8 +110,11 @@ def test_query_token(client: TestClient, token: str) -> None:
 
 def test_query_token_invalid(client: TestClient) -> None:
     resp = client.post("/api/user/query/token", headers={"x-access-token": "bogus"})
+    # Spec: InvalidTokenException -> HTTP 401 with errorCode "401"/"Unauthorized".
+    assert resp.status_code == 401
     assert resp.json()["success"] is False
-    assert resp.json()["errorCode"] == "1002"
+    assert resp.json()["errorCode"] == "401"
+    assert resp.json()["errorMsg"] == "Unauthorized"
 
 
 def test_logout_revokes_token(client: TestClient, token: str) -> None:
@@ -122,8 +125,9 @@ def test_logout_revokes_token(client: TestClient, token: str) -> None:
 
 def test_protected_route_requires_token(client: TestClient) -> None:
     resp = client.post("/api/file/2/files/synchronous/start", json={})
+    assert resp.status_code == 401
     assert resp.json()["success"] is False
-    assert resp.json()["errorCode"] == "1002"
+    assert resp.json()["errorCode"] == "401"
 
 
 def test_check_exists_server_known_account(client: TestClient) -> None:

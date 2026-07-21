@@ -29,9 +29,9 @@ def check_exists_server(
     handshake here. Single-user server: only the configured account exists."""
     email = (dto.email or "").strip().lower()
     if not email or email != settings.account.lower():
-        # Mirror the login envelope for an unknown account (AuthFailed = 1001)
-        # rather than fabricating a user for an email we don't serve.
-        return UserCheckVO(success=False, errorCode="1001", errorMsg="user not found")
+        # Mirror the login envelope for an unknown account (UserErrorCodeEnum
+        # E0018) rather than fabricating a user for an email we don't serve.
+        return UserCheckVO(success=False, errorCode="E0018", errorMsg="Account does not exist")
     user = auth.get_or_create_user(db)
     return UserCheckVO(
         success=True,
