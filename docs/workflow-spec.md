@@ -1,6 +1,9 @@
-# notehook workflows — specification (v1 draft)
+# notehook workflows — specification (v1)
 
-Status: **draft for review** — no implementation yet.
+Status: **implemented (v1)**. All seven phases in §10 have shipped and are
+covered by `make check`; §11 records where the as-built system resolved
+ambiguity the original draft left open, or corrected something the draft
+got wrong once real code exercised it.
 
 A GitHub-Actions-like automation system for notehook: when notes are created or
 updated in watched folders, Python workflows run automatically (note→PDF
@@ -71,7 +74,8 @@ Every sync action handler already knows what the event needs:
 | download | present | `updated`, source `sync-download` |
 | upload (local change pushed) | absent | `created`, source `sync-upload` |
 | upload | present | `updated`, source `sync-upload` |
-| delete_local / delete_remote | — | `deleted` |
+| delete_local (remote deletion pulled) | — | `deleted`, source `sync-download` |
+| delete_remote (local deletion pushed) | — | `deleted`, source `sync-upload` |
 | conflict keep-both copy | — | `created` for the conflicted-copy file |
 | record / mkdir / forget | — | no event |
 
@@ -165,6 +169,7 @@ CREATE TABLE run (
     workflow_name TEXT NOT NULL,             -- manifest name at time of run
     workflow_version TEXT,
     event_id      INTEGER NOT NULL REFERENCES event(id),
+    rel_path      TEXT NOT NULL,             -- denormalized from event (§11 D8)
     attempt       INTEGER NOT NULL DEFAULT 1,
     status        TEXT NOT NULL,             -- 'queued' | 'running' | 'success'
                                              --   | 'failed' | 'retry'
@@ -177,7 +182,7 @@ CREATE TABLE run (
     stderr        TEXT                       -- truncated to 256 KiB
 );
 CREATE INDEX idx_run_claim ON run(status, next_attempt_at);
-CREATE INDEX idx_run_install_path ON run(install, event_id);
+CREATE INDEX idx_run_install_path_status ON run(install, rel_path, status);
 
 CREATE TABLE runner_meta (                   -- single row
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -376,6 +381,15 @@ different aliases with different configs (same workflow, two X4s or two
 folders) — the alias, not the workflow name, is the unit of installation,
 which is why `run.install` keys on it.
 
+**Alias validation**: an alias (`--as`, or defaulted from the manifest's
+`name`) is rejected if it's empty, `.`, `..`, or contains `/`, `\`, or a
+control character — it becomes a path component under `workflows/` and
+`workflow-config/`, and for a git-sourced install the default comes from
+`manifest.name`, i.e. **content the cloned repository's own author
+controls**. Without this check a crafted manifest name is a path-traversal
+write (`install`) or, worse, an arbitrary-directory delete (`remove`, which
+`rmtree`s whatever the alias resolves to).
+
 Install config format:
 
 ```toml
@@ -384,6 +398,9 @@ source = "https://github.com/…"       # provenance, used by `update`
 enabled = true
 paths = ["Note/ToReader/**"]          # authoritative trigger binding (globs on rel_path)
 on = ["created", "updated"]           # optional narrowing of the decorator's `on`
+                                      # (pre-spawn filter — see §11 for why
+                                      # an unset `on` queues on glob match
+                                      # alone rather than reading the code)
 skip_own_changes = false              # true: drop events this client itself
                                       # originated (origin_equipment == own id) —
                                       # the clean loop guard for workflows that
@@ -414,10 +431,17 @@ detection beyond that.
 
 ### Intake (fan-out)
 
-Poll **settled** `event` rows past the cursor (`settled = 1 AND id > cursor`)
-→ for each enabled, valid install whose `paths` globs match `rel_path` and
-whose effective `on` includes the type, insert a `queued` run. Advance the
-cursor in the same transaction.
+Poll **settled** `event` rows past the cursor, as a **contiguous prefix**:
+stop at the first unsettled row rather than skipping it (a naive `settled = 1
+AND id > cursor` would let the cursor jump past a still-unsettled lower-id
+row — a real possibility since several CLI processes write `event`
+concurrently, §1 — and once that row *did* settle it would never satisfy
+`id > cursor` again, silently dropping it forever; see §11). For each row
+considered: for each enabled, valid install whose `paths` globs match
+`rel_path` and whose effective `on` includes the type, insert a `queued` run.
+Advance the cursor to the highest id considered, in the same transaction —
+even when nothing matched, so the cursor still moves past events no install
+cared about.
 
 **Targeted events**: when `target_install` is set, only that install is
 considered. For `manual` events the glob and `on` filters are bypassed
@@ -463,10 +487,13 @@ logged, skipped at intake; the daemon never crashes over a bad workflow.
 
 ### Housekeeping (open question 8 — resolved)
 
-Runner-side sweep, daily: delete `run` rows older than 90 days and `event`
-rows older than 90 days that have no pending runs; both configurable. Runner
-settings live in `~/.config/notehook/config.toml` under `[workflows]`
-(`poll_interval`, `max_parallel`, `retention_days`).
+Runner-side sweep, roughly once per day (tracked by elapsed wall time, not
+tick count, so it's independent of the poll interval): delete `run` rows
+older than `retention_days` first, then `event` rows older than
+`retention_days` that have no remaining referencing `run` rows (that order
+matters — `run.event_id` references `event`). Runner settings live in
+`~/.config/notehook/config.toml` under `[workflows]`: `poll_interval_seconds`
+(default 2), `max_parallel` (default 2), `retention_days` (default 90).
 
 ---
 
@@ -545,10 +572,10 @@ All under `notehook workflows …`:
 | `remove <alias>` | delete clone + config (prompts about run history) |
 | `update <alias>` | git pull + revalidate + re-prompt new requirements |
 | `list` | installs with name/version/enabled/paths/last-run status |
-| `run <alias> --path <file>` | manual trigger; appends a `manual` event targeted at `<alias>` (`target_install`), bypassing its glob/`on` filters — type is derived like sync does (`created` if no state row for the path, else `updated`) |
-| `backfill <alias> [--glob G]` | append `created`/`backfill` events targeted at `<alias>` for every existing file matching the install's `paths` (narrowed by `--glob`) — the replay/backfill story, built on the same log; never triggers other installs |
+| `run <alias> --path <file> [--wait]` | manual trigger; appends a `manual` event targeted at `<alias>` (`target_install`), bypassing its glob/`on` filters — type is derived like sync does (`created` if no state row for the path, else `updated`). Without `--wait`: fire-and-forget, returns as soon as the event is appended — a live `serve` (or a later poll) picks it up. With `--wait`: acquires the runner's own lock file and drives one intake+execute pass itself, then reports the outcome and exits nonzero on failure (CI-friendly) — see §11 for why this needs the same cross-process lock `serve` holds |
+| `backfill <alias> [--glob G]` | append `created`/`backfill` events targeted at `<alias>` for every existing file matching the install's `paths` (narrowed, never widened, by `--glob`) — the replay/backfill story, built on the same log. Append-only: never executes anything itself and never triggers other installs |
 | `logs [--alias A] [--failed] [--follow]` | run log viewer |
-| `serve` | the runner daemon |
+| `serve` | the runner daemon — holds the runner lock file for its whole lifetime; a second `serve` (or a `run --wait`) fails clearly instead of racing it |
 
 ### Deferred (explicitly out of v1)
 
@@ -619,3 +646,72 @@ guard — this sketch just shows the API shape.)
 6. Change-feed long-poll trigger in `notehook daemon` (graceful fallback to
    the periodic poll when the endpoint is absent).
 7. Docs + example workflow; coverage/lint/type gates as everywhere else.
+
+---
+
+## 11. As-built deviations
+
+Everything below surfaced while implementing §1–§8 — either the draft left
+real ambiguity that only became concrete once code had to make a choice, or
+building the thing exposed a correctness gap the draft didn't anticipate.
+None of these change the four frozen contracts (event schema, workflow
+author API, manifest schema, runner lifecycle); they resolve gaps between
+them.
+
+**Settled-cursor durability (§1, §6)**: the original intake query,
+`settled = 1 AND id > cursor`, has a bug once you account for concurrent
+writers (§1 already establishes that a daemon pass and a `backfill`/`manual`
+command can write `event` at the same time). A daemon pass's rows sit at
+`settled = 0` until the pass finishes; a `backfill` running concurrently
+inserts already-settled rows with higher ids. If intake advanced the cursor
+to the max id it saw, it would jump past the still-unsettled daemon-pass
+rows — and once *those* rows did settle, `id > cursor` would already be
+false for them, dropping them silently and permanently. Fixed by treating
+"settled rows past the cursor" as a **contiguous prefix**: stop at the first
+unsettled row instead of skipping it, so the cursor only ever advances over
+a run of already-known-settled rows, and a stalled row (plus everything
+after it) is picked up together once it finally settles.
+
+**`on`-narrowing is a pre-spawn filter, not a decorator read (§2, §5)**: the
+draft's "install config `on` optionally narrows the decorator's `on`" implies
+the runner can see both and intersect them. It can't, safely: the
+decorator's `on` set only exists inside the workflow's own Python source,
+knowable only by importing it — and the runner must never import untrusted
+workflow code in its own process (that's exactly the isolation the
+subprocess/`uv run` model exists to provide). So the pre-spawn filter is
+`install.config.on` alone: if set, it's authoritative; if unset, the runner
+queues on a glob/target match for all three event types and lets the SDK's
+own per-handler `on` dispatch inside the spawned subprocess no-op harmlessly
+when nothing matches. A wasted spawn is an acceptable cost; a configured
+install that silently never runs is not.
+
+**`run.rel_path` denormalization (§1)**: coalescing and per-`(install,
+rel_path)` serialization (§6) query on `rel_path` on every intake and every
+claim — joining through `event` for it on every one of those queries, and
+indexing accordingly, is strictly worse than carrying the column directly.
+`run` gained a `rel_path` column (copied from its `event` at insert time) and
+`idx_run_install_path_status (install, rel_path, status)` replaces the
+originally-specified `idx_run_install_path (install, event_id)`.
+
+**`run --wait` needs the same cross-process lock as `serve` (§6, §8)**:
+`claim_next`'s claim-one-eligible-row operation is guarded by an in-process
+lock, sufficient only because the runner lifecycle assumes a single runner
+process ever touches `run` (enforced by the runner's own flock, §6). `run
+--wait` is a second code path that drives a `Runner` synchronously — without
+also taking that same lock, a `run --wait` invocation racing a live `serve`
+could both claim and execute the same row. `run --wait` therefore acquires
+the runner's lock file itself before driving its local pass, and fails
+clearly (not silently, not by racing) if `serve` already holds it — the
+manual event is still appended first either way, so a failed `--wait` still
+leaves the trigger queued for whichever runner picks it up next.
+
+**Alias path-traversal validation (§5)**: `install`'s default alias is the
+manifest's `name` field, which for a git-sourced install is content the
+cloned repository's own author controls. Every command that turns an alias
+into a filesystem path (`install`, `configure`, `enable`/`disable`,
+`remove`, `update`) validates it first — reject empty, `.`, `..`, or any
+`/`, `\`, or control character — matching the same invariant the server
+already applies to client-supplied tree names (`tree_service.validate_name`).
+Without it, a malicious workflow source's manifest name could write outside
+`workflows/`/`workflow-config/` on install, or — since `remove` deletes
+whatever the alias resolves to — delete an arbitrary directory.

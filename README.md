@@ -12,7 +12,7 @@ uv workspace with three packages:
 |---|---|---|
 | `notehook-protocol` | [packages/protocol/](packages/protocol/) | Shared pydantic DTO/VO models mirroring the spec, plus the login password-hash helpers |
 | `notehook-server` | [packages/server/](packages/server/) | FastAPI server implementing the file-sync core: auth, device NAS endpoints, OSS-style upload/download |
-| `notehook-cli` | [packages/client/](packages/client/) | CLI client: one-shot `sync` and watch+poll `daemon`, three-way diff with conflict policies |
+| `notehook-cli` | [packages/client/](packages/client/) | CLI client: one-shot `sync` and watch+poll `daemon`, three-way diff with conflict policies, and `notehook workflows` — run Python automations when notes change |
 
 ## Quick start
 
@@ -53,6 +53,20 @@ uv run notehook daemon    # watch + poll continuously
 `--conflict-policy` on `init`: `keep-both` (default — the losing side is renamed
 to a `(conflicted copy …)` file and both survive), `newest-wins`, `local-wins`,
 `remote-wins`. `sync` exits with code 3 when keep-both hit a conflict.
+
+## Workflow automation
+
+`notehook workflows` runs Python scripts automatically when notes are
+created, updated, or deleted in watched folders — note→PDF conversion,
+pushing files to another device, calling an external API. See
+[docs/workflows.md](docs/workflows.md) for the full guide (install →
+configure → serve) and [docs/workflow-spec.md](docs/workflow-spec.md) for
+the design. Quick taste:
+
+```bash
+uv run notehook workflows install ./my-workflow --paths "Note/ToReader/**"
+uv run notehook workflows serve
+```
 
 ## Pointing a real device at this server
 
