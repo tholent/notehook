@@ -1,7 +1,7 @@
 """notehook's own extension endpoints — deliberately namespaced outside the
 reverse-engineered Supernote API (workflow-spec.md §7), so there are no
 device-compatibility constraints and the request/response models live here
-rather than in notehook-protocol (which mirrors specs/ only).
+rather than in notehook-protocol (which mirrors the reverse-engineered spec only).
 
 POST /api/notehook/changes: the server-side half of the change feed that
 wakes the client sync engine soon after a device push, instead of waiting out

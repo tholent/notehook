@@ -1,4 +1,4 @@
-"""Common response envelope (specs/components/schemas/common.yaml)."""
+"""Common response envelope (docs/openapi/components/schemas/common.yaml)."""
 
 from pydantic import BaseModel, ConfigDict
 

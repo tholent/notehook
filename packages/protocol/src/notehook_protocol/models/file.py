@@ -1,4 +1,5 @@
-"""File-Device DTO/VO models (specs/components/schemas/file.yaml).
+"""File-Device DTO/VO models (docs/openapi/components/schemas/files-core.yaml
+and files-upload-share-oss.yaml).
 
 Deliberately lenient on numeric types: the spec types ``size`` as string on the
 upload DTOs but integer elsewhere, and real firmware behavior is unverified, so
@@ -66,7 +67,7 @@ class EntriesVO(ProtocolModel):
     size: int | None = None
     lastUpdateTime: int | None = None
     parent_path: str | None = None
-    # notehook extension, not in specs/: equipment_no that last modified the
+    # notehook extension, not in the spec: equipment_no that last modified the
     # node. Consumed by the notehook CLI for workflow event attribution.
     last_modified_by: str | None = None
 

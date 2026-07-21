@@ -1,4 +1,4 @@
-"""User DTO/VO models (specs/components/schemas/user.yaml)."""
+"""User DTO/VO models (docs/openapi/components/schemas/users-accounts.yaml)."""
 
 from notehook_protocol.models.common import BaseVO, ProtocolModel
 

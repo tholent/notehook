@@ -2,9 +2,9 @@
 
 Self-hosted Supernote cloud-sync replacement: a FastAPI server a real Supernote
 device can be pointed at, plus a `notehook` CLI that keeps a local directory in
-bidirectional sync. Built against the reverse-engineered OpenAPI spec in
-`specs/` — **the spec is the contract**; check it before changing any
-request/response shape.
+bidirectional sync. Built against the reverse-engineered API spec in `docs/server-spec/` (per-domain
+Markdown + `error-codes.md`) and its OpenAPI 3.0 rendering in `docs/openapi/` —
+**the spec is the contract**; check it before changing any request/response shape.
 
 ## Layout
 
@@ -37,7 +37,7 @@ that call these same make targets — keep Makefile and workflows in lockstep.
   (extra fields ignored, sizes accept str or int), strict on what we emit.
 - Some strings look renameable but are protocol-facing — do not touch:
   `bucketName="supernote"`, the `x-access-token` header, all endpoint paths,
-  and DTO/VO field names (camelCase/snake_case exactly as in `specs/`).
+  and DTO/VO field names (camelCase/snake_case exactly as in `docs/openapi/`).
 - Env config uses the `NOTEHOOK_` prefix. Runtime state lives in `data/`
   (gitignored — captures may contain user data, never commit them).
 - Tests favor end-to-end realism: server tests drive real auth+sync sequences
