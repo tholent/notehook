@@ -17,6 +17,9 @@ build/
 coverage.xml
 htmlcov/
 
+# Local deploy secrets (compose reads this; .env.example is the committed template)
+.env
+
 # OS
 .DS_Store
 

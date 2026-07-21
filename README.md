@@ -54,6 +54,38 @@ uv run notehook daemon    # watch + poll continuously
 to a `(conflicted copy …)` file and both survive), `newest-wins`, `local-wins`,
 `remote-wins`. `sync` exits with code 3 when keep-both hit a conflict.
 
+## Deploy with Docker
+
+A multi-stage [Dockerfile](Dockerfile) and [compose.yml](compose.yml) build a
+slim image (just the built venv — no uv, source tree, or build tools) and run
+the server as an unprivileged user on port 8080.
+
+```bash
+# 1. Configure — copy the template and fill in the three required values
+cp .env.example .env
+uv run scripts/hash_password.py   # paste the digest into NOTEHOOK_PASSWORD_MD5
+
+# 2. Build and start
+docker compose up -d --build
+
+docker compose logs -f            # follow output
+```
+
+- **Config** is all `NOTEHOOK_*` env vars (same as [above](#server-configuration-env-vars-notehook_-prefix)).
+  `compose.yml` requires `NOTEHOOK_ACCOUNT`, `NOTEHOOK_PASSWORD_MD5`, and
+  `NOTEHOOK_BASE_URL` via `.env`; uncomment the optional ones as needed.
+- **State** (SQLite db, blobs, trash, the auto-generated `secret_key`, captures)
+  lives in the `/data` volume, bind-mounted to `./data` so it survives rebuilds
+  and is trivial to back up.
+- **Single worker only.** The image runs one uvicorn process because the auth
+  nonce cache and rate limiter are in-process — do not add `--workers` or run
+  multiple replicas against the same data.
+- **TLS is external.** The service is plain HTTP on 8080, published to
+  `127.0.0.1` for a reverse proxy (Caddy/nginx/Traefik) to terminate SSL and
+  forward to. Set `NOTEHOOK_BASE_URL` to the public HTTPS URL the proxy serves
+  (it's embedded in the upload/download URLs handed to the device), and drop the
+  `127.0.0.1:` prefix in the `ports:` mapping if the proxy runs on another host.
+
 ## Workflow automation
 
 `notehook workflows` runs Python scripts automatically when notes are

@@ -1,0 +1,47 @@
+services:
+  notehook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: notehook-server:latest
+    container_name: notehook
+    restart: unless-stopped
+
+    # SSL/TLS is terminated by an external reverse proxy — publish the plain
+    # HTTP service on a high port for the proxy to forward to. Bind to
+    # 127.0.0.1 so it is not reachable except through that proxy; drop the
+    # "127.0.0.1:" prefix if the proxy runs on another host.
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    # Runtime state (sqlite db, blobs, auto-generated secret_key, captures).
+    # Bind-mounted so it survives image rebuilds and is easy to back up.
+    volumes:
+      - ./data:/data
+
+    environment:
+      # --- required ---
+      # The account the Supernote device logs in as, and the MD5 of its
+      # password. Generate the hash with: uv run scripts/hash_password.py
+      NOTEHOOK_ACCOUNT: "${NOTEHOOK_ACCOUNT:?set NOTEHOOK_ACCOUNT}"
+      NOTEHOOK_PASSWORD_MD5: "${NOTEHOOK_PASSWORD_MD5:?set NOTEHOOK_PASSWORD_MD5}"
+
+      # Public URL the device reaches this server at (through the proxy). It is
+      # embedded in the upload/download URLs handed to the device, so it MUST
+      # be the externally reachable address, not localhost.
+      NOTEHOOK_BASE_URL: "${NOTEHOOK_BASE_URL:?set NOTEHOOK_BASE_URL}"
+
+      # --- optional (defaults shown in packages/server/.../config.py) ---
+      NOTEHOOK_USER_NAME: "${NOTEHOOK_USER_NAME:-Supernote User}"
+      # NOTEHOOK_MAX_UPLOAD_BYTES: "2147483648"
+      # NOTEHOOK_TOTAL_CAPACITY_BYTES: "34359738368"
+      # NOTEHOOK_DEBUG_CAPTURE: "false"
+
+    # Hit the device connectivity-ping stub (GET, no auth) as the health probe.
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/api/file/query/server', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

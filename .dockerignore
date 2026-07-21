@@ -1,0 +1,27 @@
+# Keep the build context tight — only manifests + src are copied by the
+# Dockerfile, but excluding these keeps context uploads small and avoids
+# ever baking runtime data or local caches into a layer.
+.git
+.github
+.devcontainer
+.claude
+.venv
+data/
+docs/
+specs/
+scripts/
+**/tests/
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.DS_Store
+Dockerfile
+compose.yml
+.dockerignore
+*.md
