@@ -3,7 +3,6 @@
 import time
 
 from fastapi import APIRouter, Request
-from sqlmodel import select
 
 from notehook_protocol.models.file import (
     AllocationVO,
@@ -37,13 +36,18 @@ from notehook_protocol.models.file import (
 )
 from notehook_server.auth.deps import CurrentDep, DbDep, SettingsDep
 from notehook_server.errors import NotFound
-from notehook_server.files import tree_service
+from notehook_server.files import sync_service, tree_service
 from notehook_server.files.blob_store import BlobStore
 from notehook_server.files.download_service import DownloadService
 from notehook_server.files.upload_service import UploadService
-from notehook_server.models import ROOT_ID, SyncSession, now_ms
+from notehook_server.models import ROOT_ID
 
 router = APIRouter()
+
+
+def _guard_sync(db: DbDep, settings: SettingsDep, equipment_no: str) -> None:
+    """Reject a mutation with E0079 while another device is mid-sync."""
+    sync_service.guard_not_syncing(db, equipment_no, settings.sync_session_ttl_seconds * 1000)
 
 
 def _upload_service(request: Request) -> UploadService:
@@ -63,11 +67,11 @@ def _blob_store(request: Request) -> BlobStore:
 
 @router.post("/api/file/2/files/synchronous/start")
 def sync_start(
-    dto: SynchronousStartLocalDTO, db: DbDep, current: CurrentDep
+    dto: SynchronousStartLocalDTO, db: DbDep, current: CurrentDep, settings: SettingsDep
 ) -> SynchronousStartLocalVO:
     equipment_no = dto.equipmentNo or current.equipment.equipment_no
-    db.add(SyncSession(equipment_no=equipment_no))
-    db.commit()
+    # Single-device lock: rejects with E0078 if another device is mid-sync.
+    sync_service.begin_sync(db, equipment_no, settings.sync_session_ttl_seconds * 1000)
     # Account-scoped: True only if the server already holds data. Reporting
     # False when data exists could make the device treat it as mass deletion.
     syn_type = tree_service.has_any_files(db, current.user.id or 0)
@@ -81,24 +85,15 @@ def sync_end(
     dto: SynchronousEndLocalDTO, db: DbDep, current: CurrentDep
 ) -> SynchronousEndLocalVO:
     equipment_no = dto.equipmentNo or current.equipment.equipment_no
-    session = db.exec(
-        select(SyncSession)
-        .where(SyncSession.equipment_no == equipment_no, SyncSession.status == "active")
-        .order_by(SyncSession.started_at.desc())  # type: ignore[attr-defined]
-    ).first()
-    if session is not None:
-        session.ended_at = now_ms()
-        session.flag = dto.flag
-        session.status = "completed"
-        db.add(session)
-        db.commit()
+    sync_service.end_sync(db, equipment_no, dto.flag)
     return SynchronousEndLocalVO(success=True, errorCode="0000", equipmentNo=equipment_no)
 
 
 @router.post("/api/file/2/files/create_folder_v2")
 def create_folder_v2(
-    dto: CreateFolderLocalDTO, db: DbDep, current: CurrentDep
+    dto: CreateFolderLocalDTO, db: DbDep, current: CurrentDep, settings: SettingsDep
 ) -> CreateFolderLocalVO:
+    _guard_sync(db, settings, dto.equipmentNo or current.equipment.equipment_no)
     node = tree_service.create_folder(
         db,
         current.user.id or 0,
@@ -156,8 +151,13 @@ def list_folder_v3(
 
 @router.post("/api/file/3/files/delete_folder_v3")
 def delete_folder_v3(
-    dto: DeleteFolderLocalDTO, db: DbDep, current: CurrentDep, request: Request
+    dto: DeleteFolderLocalDTO,
+    db: DbDep,
+    current: CurrentDep,
+    request: Request,
+    settings: SettingsDep,
 ) -> DeleteFolderLocalVO:
+    _guard_sync(db, settings, dto.equipmentNo or current.equipment.equipment_no)
     node, orphaned = tree_service.delete_node(
         db, current.user.id or 0, dto.id, dto.equipmentNo or current.equipment.equipment_no
     )
@@ -203,7 +203,10 @@ def query_by_path_v3(
 
 
 @router.post("/api/file/3/files/move_v3")
-def move_v3(dto: FileMoveLocalDTO, db: DbDep, current: CurrentDep) -> FileMoveLocalVO:
+def move_v3(
+    dto: FileMoveLocalDTO, db: DbDep, current: CurrentDep, settings: SettingsDep
+) -> FileMoveLocalVO:
+    _guard_sync(db, settings, dto.equipmentNo or current.equipment.equipment_no)
     node = tree_service.move_node(
         db,
         current.user.id or 0,
@@ -221,7 +224,10 @@ def move_v3(dto: FileMoveLocalDTO, db: DbDep, current: CurrentDep) -> FileMoveLo
 
 
 @router.post("/api/file/3/files/copy_v3")
-def copy_v3(dto: FileCopyLocalDTO, db: DbDep, current: CurrentDep) -> FileCopyLocalVO:
+def copy_v3(
+    dto: FileCopyLocalDTO, db: DbDep, current: CurrentDep, settings: SettingsDep
+) -> FileCopyLocalVO:
+    _guard_sync(db, settings, dto.equipmentNo or current.equipment.equipment_no)
     node = tree_service.copy_node(
         db,
         current.user.id or 0,
@@ -240,8 +246,13 @@ def copy_v3(dto: FileCopyLocalDTO, db: DbDep, current: CurrentDep) -> FileCopyLo
 
 @router.post("/api/file/3/files/upload/apply")
 def upload_apply_v3(
-    dto: FileUploadApplyLocalDTO, db: DbDep, current: CurrentDep, request: Request
+    dto: FileUploadApplyLocalDTO,
+    db: DbDep,
+    current: CurrentDep,
+    request: Request,
+    settings: SettingsDep,
 ) -> FileUploadApplyLocalVO:
+    _guard_sync(db, settings, dto.equipmentNo or current.equipment.equipment_no)
     service = _upload_service(request)
     upload = service.apply(
         db,
@@ -267,8 +278,13 @@ def upload_apply_v3(
 
 @router.post("/api/file/2/files/upload/finish")
 def upload_finish_v2(
-    dto: FileUploadFinishLocalDTO, db: DbDep, current: CurrentDep, request: Request
+    dto: FileUploadFinishLocalDTO,
+    db: DbDep,
+    current: CurrentDep,
+    request: Request,
+    settings: SettingsDep,
 ) -> FileUploadFinishLocalVO:
+    _guard_sync(db, settings, dto.equipmentNo or current.equipment.equipment_no)
     service = _upload_service(request)
     node = service.finish(
         db,

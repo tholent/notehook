@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from notehook_server.models import FileNode
+from notehook_server.models import FileNode, SyncSession, now_ms
 from tests.conftest import TEST_ACCOUNT, TEST_PASSWORD
 from tests.helpers.fake_device import FakeDevice
 
@@ -161,6 +161,58 @@ def test_chunked_upload(device: FakeDevice) -> None:
     )
     assert finish["success"], finish
     assert device.download(int(finish["id"])) == data
+
+
+def _other_device(client: TestClient) -> FakeDevice:
+    other = FakeDevice(client, TEST_ACCOUNT, TEST_PASSWORD, "SN-OTHER-0001")
+    assert other.login()["success"]
+    return other
+
+
+def test_second_device_sync_blocked_while_one_active(
+    client: TestClient, device: FakeDevice
+) -> None:
+    assert device.sync_start()["success"] is True
+    other = _other_device(client)
+    blocked = other.sync_start()
+    assert blocked["success"] is False
+    assert blocked["errorCode"] == "E0078"
+
+
+def test_mutation_blocked_while_other_device_syncing(
+    client: TestClient, device: FakeDevice
+) -> None:
+    assert device.sync_start()["success"] is True
+    other = _other_device(client)
+    rejected = other.create_folder("/Intruder")
+    assert rejected["success"] is False
+    assert rejected["errorCode"] == "E0079"
+
+
+def test_owning_device_may_mutate_during_its_own_sync(device: FakeDevice) -> None:
+    assert device.sync_start()["success"] is True
+    assert device.create_folder("/Note")["success"] is True  # same device, allowed
+
+
+def test_sync_lock_released_by_sync_end(client: TestClient, device: FakeDevice) -> None:
+    assert device.sync_start()["success"] is True
+    assert device.sync_end()["success"] is True
+    other = _other_device(client)
+    assert other.sync_start()["success"] is True  # lock released, other may proceed
+
+
+def test_stale_active_session_self_heals(app: FastAPI, client: TestClient) -> None:
+    # A session left "active" long ago (device crashed mid-sync) must not wedge
+    # the lock forever: it falls outside the TTL and is ignored.
+    ttl_ms = app.state.settings.sync_session_ttl_seconds * 1000
+    with Session(app.state.engine) as session:
+        session.add(
+            SyncSession(equipment_no="SN-GHOST", started_at=now_ms() - ttl_ms - 1000)
+        )
+        session.commit()
+    device = FakeDevice(client, TEST_ACCOUNT, TEST_PASSWORD, "SN-FRESH")
+    assert device.login()["success"]
+    assert device.sync_start()["success"] is True  # ghost session is expired
 
 
 def test_space_usage(device: FakeDevice) -> None:

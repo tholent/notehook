@@ -75,7 +75,9 @@ class UploadSession(SQLModel, table=True):
 
 
 class SyncSession(SQLModel, table=True):
-    """Audit log of device sync sessions. Informational only — never a lock."""
+    """Device sync sessions — both the audit log and the single-device sync
+    lock (files/sync_service.py: E0078/E0079). A row with status "active" whose
+    started_at is within the TTL blocks other devices from syncing/mutating."""
 
     id: int | None = Field(default=None, primary_key=True)
     equipment_no: str = Field(index=True)

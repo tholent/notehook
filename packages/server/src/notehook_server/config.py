@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     upload_session_ttl_seconds: int = 3600
     download_url_ttl_seconds: int = 900
     login_attempts_per_minute: int = 5
+    # After this long an unfinished sync session is treated as abandoned so the
+    # single-device sync lock (E0078/E0079) self-heals if a device crashes.
+    sync_session_ttl_seconds: int = 600
 
     max_upload_bytes: int = 2 * 1024**3
     total_capacity_bytes: int = 32 * 1024**3
